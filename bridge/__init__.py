@@ -5,4 +5,4 @@ persistent shells, state and deterministic orchestration. It contains no model A
 client: model reasoning remains in the active ChatGPT session or explicit
 chatgpt.com sub-conversations.
 """
-__version__ = "0.2.0"
+__version__ = "0.2.1"

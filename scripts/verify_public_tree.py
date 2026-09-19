@@ -37,6 +37,15 @@ def main() -> None:
     version = version_match.group(1) if version_match else None
     if server.get("version") != version:
         errors.append(f"version mismatch: bridge={version!r} server.json={server.get('version')!r}")
+    package_versions = {
+        package.get("version")
+        for package in server.get("packages", [])
+        if isinstance(package, dict)
+    }
+    if package_versions != {version}:
+        errors.append(
+            f"package version mismatch: bridge={version!r} server packages={sorted(package_versions)!r}"
+        )
 
     marker = f"<!-- mcp-name: {server.get('name')} -->"
     if marker not in (ROOT / "README.md").read_text():

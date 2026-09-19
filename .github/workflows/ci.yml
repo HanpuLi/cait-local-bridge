@@ -76,9 +76,21 @@ jobs:
         run: python -m twine check dist/*
       - name: Clean wheel install
         run: |
-          python -m venv /tmp/clb-wheel-test
-          /tmp/clb-wheel-test/bin/python -m pip install dist/*.whl
-          /tmp/clb-wheel-test/bin/python -m pip check
-          /tmp/clb-wheel-test/bin/scoperail --version
-          /tmp/clb-wheel-test/bin/python -c "import bridge; assert bridge.__version__ == '0.2.0'"
-          /tmp/clb-wheel-test/bin/python scripts/smoke_stdio.py --command /tmp/clb-wheel-test/bin/scoperail-stdio
+          EXPECTED_VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+          match = re.search(r'__version__\s*=\s*"([^"]+)"', Path("bridge/__init__.py").read_text())
+          if not match:
+              raise SystemExit("bridge version not found")
+          print(match.group(1))
+          PY
+          )"
+          python -m venv /tmp/scoperail-wheel-test
+          /tmp/scoperail-wheel-test/bin/python -m pip install dist/*.whl
+          /tmp/scoperail-wheel-test/bin/python -m pip check
+          /tmp/scoperail-wheel-test/bin/scoperail --version | grep -Fx "scoperail $EXPECTED_VERSION"
+          (
+            cd /tmp
+            /tmp/scoperail-wheel-test/bin/python -c "import bridge, importlib.metadata as m; assert bridge.__version__ == '$EXPECTED_VERSION'; assert m.version('scoperail') == '$EXPECTED_VERSION'"
+          )
+          /tmp/scoperail-wheel-test/bin/python scripts/smoke_stdio.py --command /tmp/scoperail-wheel-test/bin/scoperail-stdio
