@@ -254,6 +254,14 @@ def workspace_list(_subject: str) -> CallToolResult:
     return _ok({"workspaces": policy.workspace_list()})
 
 
+@tool("workspace_doctor", RO)
+@guarded
+def workspace_doctor(workspace: str, path: str | None = None, _subject: str = "") -> CallToolResult:
+    """Diagnose one registered workspace by ID or root path and optionally check a workspace-relative path."""
+    result = policy.workspace_doctor(workspace, path)
+    return _ok(result, workspace_id=result["workspace"]["id"])
+
+
 @tool("workspace_inspect", RO)
 @guarded
 def workspace_inspect(workspace_id: str, _subject: str) -> CallToolResult:

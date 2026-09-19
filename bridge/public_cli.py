@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 from . import __version__
@@ -18,6 +19,37 @@ def _workspace(args: argparse.Namespace) -> None:
         policy.grant_add(w["id"], "desktop", {"screen": "*"}, hours=None, max_uses=None)
     print(json.dumps({"workspace_id": w["id"], "root": w["root"], "profiles": w["profiles"], "network": w["network"],
                       "desktop_granted": bool(args.desktop)}, indent=2))
+
+
+def _workspace_doctor(args: argparse.Namespace) -> None:
+    from . import policy
+
+    try:
+        result = policy.workspace_doctor(args.workspace, args.path)
+    except policy.BridgeError as exc:
+        if args.json:
+            print(json.dumps(exc.payload(), indent=2))
+        else:
+            print(f"{exc.code}: {exc.message}")
+        raise SystemExit(2) from None
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return
+
+    w = result["workspace"]
+    expires = "never" if w["expires_at"] is None else time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(w["expires_at"]))
+    print(f"workspace {w['id']} ({w['name']})")
+    print(f"  state: {w['state']}  active={'yes' if w['active'] else 'no'}  root_available={'yes' if w['root_available'] else 'no'}")
+    print(f"  root: {w['root']}")
+    print(f"  profiles: {', '.join(w['profiles']) or '(none)'}")
+    print(f"  network: {w['network']}  expires: {expires}")
+    if "path" in result:
+        p = result["path"]
+        if p["allowed"]:
+            suffix = "exists" if p["exists"] else "new path"
+            print(f"  path: allowed ({suffix}) -> {p['resolved']}")
+        else:
+            print(f"  path: rejected [{p['error']}] {p['message']}")
 
 
 def _grant(args: argparse.Namespace) -> None:
@@ -57,6 +89,14 @@ def main() -> None:
     init.add_argument("--desktop", action="store_true",
                       help="create a persistent desktop-control grant for this workspace")
     init.set_defaults(func=_workspace)
+
+    workspace = sub.add_parser("workspace", help="workspace diagnostics")
+    workspace_sub = workspace.add_subparsers(dest="workspace_command", required=True)
+    doctor = workspace_sub.add_parser("doctor", help="diagnose a registered workspace and optional path")
+    doctor.add_argument("workspace", help="workspace ID or registered root path")
+    doctor.add_argument("--path", help="workspace-relative path to check without mutating it")
+    doctor.add_argument("--json", action="store_true", help="print the stable machine-readable result")
+    doctor.set_defaults(func=_workspace_doctor)
 
     grant = sub.add_parser("grant", help="create an explicit local capability grant")
     grant.add_argument("workspace_id")

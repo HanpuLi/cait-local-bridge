@@ -4,6 +4,8 @@
 
 Check that the path belongs to the workspace, the requested execution profile is enabled, and any sensitive action has the required grant. Do not work around the error by registering the entire home directory.
 
+For workspace/path failures, run `scoperail workspace doctor <workspace-id-or-root> --path <relative-path>` or call the read-only MCP `workspace_doctor` tool. It reports active/expired/revoked/offline state and a sanitized path-policy result without exposing an outside symlink target.
+
 ## Native UI is empty or actions fail
 
 Confirm Screen Recording and Accessibility permission for the actual Python or launcher process. Some applications expose incomplete Accessibility trees; use semantic observation first, then screenshot/coordinate fallback where necessary.
