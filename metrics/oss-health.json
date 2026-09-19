@@ -1,18 +1,19 @@
 {
   "repository": "HanpuLi/scoperail",
   "repository_status": "ok",
-  "last_updated": "2026-09-19T04:21:49.157805+00:00",
+  "last_updated": "2026-09-19T11:18:29.224151+00:00",
   "stars": 0,
   "forks": 0,
-  "open_issues": 7,
-  "releases": 2,
+  "open_issues": 3,
+  "releases": 4,
   "external_contributors_12m": 0,
   "external_merged_prs_12m": 0,
   "package": "scoperail",
   "monthly_downloads": {
     "value": null,
-    "source": "pypistats",
-    "status": "unavailable"
+    "source": "PyPI/PyPI Stats",
+    "status": "unavailable",
+    "reason": "No scoperail PyPI project was found in the 2026-09-19 public check; GitHub release wheel is the current install source."
   },
   "dependent_repositories": {
     "value": null,
@@ -25,17 +26,17 @@
     "reason": "No reliable ecosystem-agnostic public API is assumed."
   },
   "openssf_criticality": {
-    "value": 0.12854,
+    "value": 0.13792,
     "status": "measured",
     "source": "OpenSSF criticality_score",
-    "method": "v2 CLI, deps.dev disabled; GitHub signals only",
+    "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
     "full_default_status": "not_measured",
-    "note": "The full deps.dev-enriched run may differ and requires Google Cloud ADC."
+    "note": "Measured 2026-09-19. The full deps.dev-enriched run may differ and requires Google Cloud ADC."
   },
   "mcp_registry": {
     "published": false,
     "matches": 0,
     "source": "MCP Registry",
-    "status": "ok"
+    "status": "not_found_in_2026-09-19_public_search"
   }
 }
