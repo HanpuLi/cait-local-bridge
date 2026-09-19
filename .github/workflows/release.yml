@@ -6,8 +6,13 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
+      release_ref:
+        description: "Existing vX.Y.Z tag to recover/publish; required when publish_pypi is enabled"
+        required: false
+        type: string
+        default: ""
       publish_pypi:
-        description: "Publish the current version to PyPI using Trusted Publishing"
+        description: "Publish the existing tagged release to PyPI using Trusted Publishing"
         required: false
         type: boolean
         default: false
@@ -23,6 +28,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.release_ref || github.ref }}
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -36,14 +42,16 @@ jobs:
           python -m twine check dist/*
           shasum -a 256 dist/* > SHA256SUMS
       - name: Tag/version guard
-        if: github.ref_type == 'tag'
+        if: github.ref_type == 'tag' || inputs.release_ref != ''
+        env:
+          RELEASE_REF: ${{ inputs.release_ref || github.ref_name }}
         run: |
           python - <<'PY'
           import os, bridge
-          tag = os.environ["GITHUB_REF_NAME"]
+          tag = os.environ["RELEASE_REF"].rsplit("/", 1)[-1]
           expected = "v" + bridge.__version__
           if tag != expected:
-              raise SystemExit(f"tag {tag!r} does not match package {expected!r}")
+              raise SystemExit(f"release ref {tag!r} does not match package {expected!r}")
           PY
       - name: Upload distributions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -76,7 +84,7 @@ jobs:
           fi
 
   pypi:
-    if: (github.ref_type == 'tag' || inputs.publish_pypi == true) && vars.PYPI_PUBLISH_ENABLED == 'true'
+    if: (github.ref_type == 'tag' || (inputs.publish_pypi == true && inputs.release_ref != '')) && vars.PYPI_PUBLISH_ENABLED == 'true'
     needs: build
     runs-on: ubuntu-latest
     environment: pypi
@@ -84,15 +92,31 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Download distributions
+      - name: Download newly built distributions
+        if: github.ref_type == 'tag'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: python-distributions
           path: dist-bundle
-      - name: Stage package files
+      - name: Stage newly built package files
+        if: github.ref_type == 'tag'
         run: |
           mkdir -p dist
           cp dist-bundle/dist/* dist/
+      - name: Download exact existing GitHub Release assets
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          mkdir -p dist
+          gh release download "$RELEASE_REF" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'cait_local_bridge-*.whl' \
+            --pattern 'cait_local_bridge-*.tar.gz' \
+            --dir dist
+          gh release download "$RELEASE_REF" --repo "$GITHUB_REPOSITORY" \
+            --pattern SHA256SUMS
+          shasum -a 256 -c SHA256SUMS
       - name: Publish to PyPI with Trusted Publishing
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
@@ -104,15 +128,18 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Checkout
+      - name: Checkout exact release ref
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.release_ref || github.ref }}
       - name: Install MCP Registry publisher
         env:
           MCP_PUBLISHER_VERSION: "1.8.1"
         run: |
-          curl --fail --location --silent --show-error             "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"             | tar xz mcp-publisher
+          curl --fail --location --silent --show-error \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
           ./mcp-publisher --version
       - name: Validate registry metadata
         run: ./mcp-publisher validate server.json
