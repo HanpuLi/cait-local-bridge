@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS / Python ${{ matrix.python-version }}
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Fatal lint checks
+        run: ruff check --select E9,F63,F7,F82 bridge tests scripts
+      - name: Compile
+        run: python -m compileall -q bridge scripts tests
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  linux-pure:
+    name: Linux / portable logic
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Portable unit tests
+        run: python -m unittest tests.test_shells tests.test_last_interaction -v
+
+  package:
+    name: Package / clean install
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build tooling
+        run: python -m pip install build twine
+      - name: Verify public tree
+        run: python scripts/verify_public_tree.py
+      - name: Build wheel and sdist
+        run: python -m build
+      - name: Check metadata
+        run: python -m twine check dist/*
+      - name: Clean wheel install
+        run: |
+          python -m venv /tmp/clb-wheel-test
+          /tmp/clb-wheel-test/bin/python -m pip install dist/*.whl
+          /tmp/clb-wheel-test/bin/python -m pip check
+          /tmp/clb-wheel-test/bin/cait-local-bridge --version
+          /tmp/clb-wheel-test/bin/python -c "import bridge; assert bridge.__version__ == '0.1.0'"
+          /tmp/clb-wheel-test/bin/python scripts/smoke_stdio.py --command /tmp/clb-wheel-test/bin/cait-local-bridge-stdio

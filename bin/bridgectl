@@ -1,0 +1,408 @@
+#!/usr/bin/env python3
+"""bridgectl: the user's local management channel for Cait Local Bridge.
+Talks to the loopback admin API (127.0.0.1:8796) with the admin token file; drives launchd and Tailscale Funnel directly.
+Nothing here is reachable from ChatGPT or the internet."""
+from __future__ import annotations
+import os, sys
+# ~/bin/bridgectl is a symlink and .venv/bin/python is itself a symlink to the interpreter, so resolve the install dir
+# via realpath and detect the venv by sys.prefix rather than by comparing executables.
+_VENV_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ".venv")
+_VENV = os.path.join(_VENV_DIR, "bin", "python")
+if os.path.exists(_VENV) and os.path.realpath(sys.prefix) != os.path.realpath(_VENV_DIR):
+    os.execv(_VENV, [_VENV, os.path.realpath(__file__)] + sys.argv[1:])
+import argparse, getpass, json, shutil, subprocess, time, urllib.parse
+from pathlib import Path
+
+INSTALL_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(INSTALL_DIR))
+STATE = Path(os.environ.get("CLB_STATE_DIR", Path.home() / ".cait-local-bridge"))
+PLIST = Path.home() / "Library/LaunchAgents/com.cait.local-bridge.plist"
+LABEL = "com.cait.local-bridge"
+TS = next((
+    p for p in (
+        shutil.which("tailscale"),
+        "/usr/local/bin/tailscale",
+        "/opt/homebrew/bin/tailscale",
+    ) if p and Path(p).exists()
+), None)
+VENV_PY = INSTALL_DIR / ".venv/bin/python"
+
+
+def cfg() -> dict:
+    from bridge.config import load_config
+    return load_config()
+
+
+def call(op: str, body: dict | None = None) -> dict:
+    import httpx
+    from bridge.config import admin_token
+    c = cfg()
+    try:
+        r = httpx.post(f"http://127.0.0.1:{c['admin_port']}/admin/{op}", json=body or {}, headers={"Authorization": f"Bearer {admin_token()}"}, timeout=60)
+    except httpx.ConnectError:
+        sys.exit("bridge is not running (admin port closed). Start it: bridgectl start")
+    try:
+        return r.json()
+    except ValueError:
+        sys.exit(f"admin error {r.status_code}: {r.text[:300]}")
+
+
+def out(x) -> None:
+    print(json.dumps(x, indent=2, ensure_ascii=False, default=str))
+
+
+def launchctl(*args) -> subprocess.CompletedProcess:
+    return subprocess.run(["launchctl", *args], capture_output=True, text=True)
+
+
+def cmd_start(a):
+    if not PLIST.exists():
+        sys.exit(f"{PLIST} missing; run scripts/install.sh")
+    uid = os.getuid()
+    launchctl("bootstrap", f"gui/{uid}", str(PLIST))
+    r = launchctl("kickstart", "-k", f"gui/{uid}/{LABEL}")
+    time.sleep(2); cmd_status(a)
+
+
+def cmd_stop(a):
+    uid = os.getuid()
+    r = launchctl("bootout", f"gui/{uid}/{LABEL}")
+    print("stopped" if r.returncode == 0 else f"bootout: {r.stderr.strip() or r.stdout.strip() or 'not loaded'}")
+
+
+def cmd_status(a):
+    uid = os.getuid()
+    r = launchctl("print", f"gui/{uid}/{LABEL}")
+    state = "loaded" if r.returncode == 0 else "not loaded"
+    pid = next((l.split("=")[1].strip() for l in r.stdout.splitlines() if l.strip().startswith("pid =")), None)
+    print(f"launchd: {state} pid={pid}")
+    try:
+        s = call("status"); print(f"bridge: pid={s['pid']} public_url={s['public_url']} passphrase={'set' if s['passphrase_configured'] else 'NOT SET'} "
+                                  f"workspaces={len([w for w in s['workspaces'] if w['active']])} active_jobs={len(s['active_jobs'])} live_tokens={s['live_access_tokens']} clients={s['oauth_clients']}")
+    except SystemExit as e:
+        print(e)
+    c = cfg(); mount = c.get("funnel_path", "/gw")
+    if TS:
+        f = subprocess.run([TS, "funnel", "status"], capture_output=True, text=True).stdout
+        on = "Funnel on" in f and f"{mount} " in f
+        print("funnel: " + (f"ON ({c['public_url']})" if on else f"off (mount {mount} not present on :{c['funnel_port']})"))
+    else:
+        print("funnel: unavailable (tailscale executable not found)")
+
+
+def cmd_doctor(a):
+    c = cfg(); problems = []
+    print(f"state dir: {STATE}  (mode {oct(STATE.stat().st_mode & 0o777)})")
+    print(f"install dir: {INSTALL_DIR}")
+    print(f"venv python: {VENV_PY} {'ok' if VENV_PY.exists() else 'MISSING'}")
+    for exe in ("node", "git", "rg", "gh", "sandbox-exec", "patch"):
+        p = subprocess.run(["/usr/bin/which", exe], capture_output=True, text=True, env={"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}).stdout.strip()
+        print(f"{exe:13} {p or 'MISSING'}"); problems += [] if p else [exe]
+    for f in ("secrets/admin.token", "secrets/user.json", "bridge.sqlite3", "config.json"):
+        p = STATE / f; print(f"{f:22} {'ok' if p.exists() else 'missing'}{' mode ' + oct(p.stat().st_mode & 0o777) if p.exists() else ''}")
+    # independence: the service environment must not contain model runtimes or provider credentials
+    env_leak = [k for k in os.environ if k.upper().startswith(("ANTHROPIC_", "OPENAI_", "CLAUDE", "CODEX"))]
+    print("model env vars in this shell:", env_leak or "none")
+    if PLIST.exists():
+        import plistlib
+        pl = plistlib.load(open(PLIST, "rb"))
+        print("launchd PATH:", pl.get("EnvironmentVariables", {}).get("PATH"))
+        print("launchd program:", pl["ProgramArguments"])
+    if TS:
+        ver = subprocess.run([TS, "version"], capture_output=True, text=True).stdout.split()
+        print("tailscale:", ver[0] if ver else TS)
+    else:
+        print("tailscale: MISSING (only required for Funnel deployment)")
+    print("chrome:", "present" if Path("/Applications/Google Chrome.app").exists() else "absent (playwright chromium needed)")
+    cmd_status(a)
+    print("problems:", problems or "none")
+
+
+def cmd_passphrase(a):
+    from bridge.auth import set_passphrase
+    p1 = getpass.getpass("New bridge passphrase (>= 12 chars): ")
+    p2 = getpass.getpass("Repeat: ")
+    if p1 != p2:
+        sys.exit("mismatch")
+    set_passphrase(p1); print("passphrase set (scrypt, ~/.cait-local-bridge/secrets/user.json)")
+
+
+COMET_APP = Path("/Applications/Comet.app/Contents/MacOS/Comet")
+COMET_PROFILE = Path.home() / "Library/Application Support/Comet/Default"
+# State needed for authenticated Chromium sessions. Caches/history are intentionally not copied.
+_PROFILE_FILES = ["Cookies", "Cookies-journal", "Login Data", "Login Data-journal", "Web Data", "Web Data-journal",
+                  "Preferences", "Secure Preferences", "Local Storage", "Session Storage", "IndexedDB"]
+
+
+def _write_cfg(**kv):
+    from bridge.config import CONFIG_PATH
+    c = json.loads(CONFIG_PATH.read_text()); c.update(kv)
+    CONFIG_PATH.write_text(json.dumps(c, indent=2, ensure_ascii=False) + "\n")
+    os.chmod(CONFIG_PATH, 0o600)
+
+
+def cmd_public_url(a):
+    url = a.url.rstrip("/")
+    u = urllib.parse.urlsplit(url)
+    loopback = u.hostname in ("127.0.0.1", "localhost", "::1")
+    if not u.netloc or u.scheme not in ("http", "https") or (not loopback and u.scheme != "https"):
+        sys.exit("public URL must be https://... (http is accepted only for loopback)")
+    _write_cfg(public_url=url)
+    print(f"public_url = {url}")
+    if not a.no_restart:
+        uid = os.getuid()
+        launchctl("kickstart", "-k", f"gui/{uid}/{LABEL}")
+        time.sleep(2)
+        cmd_status(a)
+    else:
+        print("restart required before OAuth metadata uses the new issuer/resource URL")
+
+
+def _clone_browser_profile(executable: Path, profile: Path):
+    from bridge.config import BROWSER_PROFILE_DIR
+    executable = executable.expanduser().resolve()
+    profile = profile.expanduser().resolve()
+    if not executable.is_file():
+        sys.exit(f"browser executable not found: {executable}")
+    if not profile.is_dir():
+        sys.exit(f"browser profile not found: {profile}")
+    dst = BROWSER_PROFILE_DIR / "Default"
+    if dst.exists():
+        shutil.rmtree(dst)
+    dst.mkdir(parents=True)
+    copied = []
+    for name in _PROFILE_FILES:
+        src = profile / name
+        if not src.exists():
+            continue
+        if src.is_dir():
+            shutil.copytree(src, dst / name, ignore=shutil.ignore_patterns("LOCK"))
+        else:
+            shutil.copy2(src, dst / name)
+        copied.append(name)
+    for lock in dst.rglob("LOCK"):
+        lock.unlink()
+    local_state = profile.parent / "Local State"
+    if local_state.exists():
+        shutil.copy2(local_state, BROWSER_PROFILE_DIR / "Local State")
+    _write_cfg(browser_executable=str(executable), browser_headless=False)
+    return copied, dst
+
+
+def cmd_browser(a):
+    """Clone an explicitly chosen Chromium profile into the bridge-owned profile,
+    or reset to an empty managed profile. use-comet is a compatibility shortcut."""
+    from bridge.config import BROWSER_PROFILE_DIR
+    if a.action in ("clone-profile", "use-comet"):
+        if a.action == "use-comet":
+            executable, profile = COMET_APP, COMET_PROFILE
+        else:
+            if not a.executable or not a.profile:
+                sys.exit("usage: bridgectl browser clone-profile --executable <browser-binary> --profile <profile-dir>")
+            executable, profile = Path(a.executable), Path(a.profile)
+        copied, dst = _clone_browser_profile(executable, profile)
+        print(f"cloned {copied} from {Path(profile).expanduser()} into {dst}; managed browser is windowed")
+        uid = os.getuid()
+        launchctl("kickstart", "-k", f"gui/{uid}/{LABEL}")
+        time.sleep(2)
+        print("This is a copy, not a live share. Re-run the clone after browser-login changes.")
+    elif a.action == "reset":
+        shutil.rmtree(BROWSER_PROFILE_DIR, ignore_errors=True)
+        _write_cfg(browser_executable=None, browser_headless=True)
+        print("browser profile wiped; engine = headless Chrome/Chromium with an empty profile")
+        uid = os.getuid()
+        launchctl("kickstart", "-k", f"gui/{uid}/{LABEL}")
+
+
+def cmd_workspace(a):
+    if a.action == "add":
+        out(call("workspace_add", {"root": str(Path(a.root).expanduser().resolve()), "name": a.name, "profiles": a.profiles.split(","), "network": a.network, "days": a.days, "notes": a.notes}))
+    elif a.action == "list":
+        out(call("status")["workspaces"])
+    elif a.action == "revoke":
+        out(call("workspace_revoke", {"id": a.id}))
+    elif a.action == "profiles":
+        out(call("workspace_profiles", {"id": a.id, "add": a.add.split(",") if a.add else [], "remove": a.remove.split(",") if a.remove else [], "network": a.network}))
+
+
+def cmd_grant(a):
+    if a.action == "add":
+        params = dict(kv.split("=", 1) for kv in a.params)
+        out(call("grant_add", {"workspace_id": a.workspace_id, "kind": a.kind, "params": params, "hours": a.hours, "max_uses": a.max_uses}))
+    elif a.action == "list":
+        out(call("grant_list", {"workspace_id": a.workspace_id}))
+    elif a.action == "revoke":
+        out(call("grant_revoke", {"id": a.id}))
+
+
+def cmd_tokens(a):
+    out(call("tokens_revoke_all" if a.action == "revoke-all" else "tokens_list"))
+
+
+def cmd_clients(a):
+    out(call("clients_list"))
+
+
+def cmd_jobs(a):
+    if a.action == "list":
+        out(call("jobs", {"limit": a.limit}))
+    elif a.action == "cancel":
+        out(call("job_cancel", {"id": a.id}))
+    elif a.action == "cancel-all":
+        out(call("jobs_cancel_all"))
+
+
+def cmd_agents(a):
+    """Sub-agent runs = conversations in the user's own chatgpt.com session (agent_start)."""
+    if a.action == "list":
+        for r in call("agents", {"limit": a.limit})["runs"]:
+            print(r["run_id"], r["status"], f"{r['elapsed_s']:.0f}s", r.get("agent") or "-", r.get("effort"), r.get("conversation_url") or "-", (r.get("error_code") or ""))
+    elif a.action == "cancel":
+        out(call("agent_cancel", {"id": a.id}))
+
+
+def cmd_pipelines(a):
+    """Multi-stage sub-agent pipelines (agent_pipeline): list, or cancel one."""
+    if a.action == "list":
+        for p in call("pipelines", {"limit": a.limit})["pipelines"]:
+            stages = " ".join(f"{s['id']}={s['status']}" for s in p["stages"])
+            print(p["pipeline_id"], p["status"], f"{p['elapsed_s']:.0f}s", p.get("output_dir") or "-", stages)
+    elif a.action == "cancel":
+        out(call("pipeline_cancel", {"id": a.id}))
+
+
+def cmd_task(a):
+    """coding_task from the terminal (Codex-style): implement -> test -> fix on a branch, driven by sub-agent conversations in the user's own ChatGPT."""
+    def ws_id(x):
+        for w in call("status")["workspaces"]:
+            if x in (w["id"], w["name"]):
+                return w["id"]
+        sys.exit(f"no workspace {x!r}; bridgectl workspace list")
+    def show(t, verbose=True):
+        print(f"{t['task_id']} {t['status']} step={t.get('step')} {t['elapsed_s']:.0f}s branch={t.get('branch')} worktree={t.get('worktree')}")
+        if not verbose: return
+        b = t.get("baseline")
+        if b: print(f"  baseline: exit {b.get('exit_code')} ({b.get('elapsed_s')}s) {b.get('log')}")
+        for r in t.get("rounds", []):
+            print(f"  round {r['round']} {r['kind']}: agent={r.get('agent_status')}/{r.get('task_status') or '-'} {r.get('agent_elapsed_s') or ''}s calls={r.get('tool_calls', 0)} bridge={r.get('bridge_calls_in_window', 0)} dropped={r.get('upstream_blocks_observed', 0)}"
+                  + (f" tests=exit {r.get('test_exit')} ({r.get('test_elapsed_s')}s) {r.get('test_log')}" if r.get('test_log') else "") + (f" {r.get('conversation_url')}" if r.get('conversation_url') else "")
+                  + (f" ERROR {r.get('error_code')}: {r.get('error')}" if r.get('error_code') else ""))
+        if t.get("error_code"): print(f"  error: {t['error_code']}: {t.get('error')}")
+        if t.get("diffstat"): print("  " + t["diffstat"].replace("\n", "\n  "))
+        if t.get("summary_path"): print(f"  summary: {t['summary_path']}")
+    if a.action == "start":
+        if not a.task: sys.exit("usage: bridgectl task start \"<what to change>\" --workspace <id|name> [--repo .] [--test \"pytest -q\"] [--rounds 3] [--effort extra_high] [--agent x] [--notes ...] [--watch]")
+        body = {"workspace_id": ws_id(a.workspace), "task": a.task, "repo_path": a.repo, "test_command": a.test, "max_rounds": a.rounds, "effort": a.effort,
+                "agent": a.agent, "profile": a.profile, "baseline": not a.no_baseline, "notes": a.notes, "branch": a.branch, "protected_paths": a.protect or []}
+        t = call("coding_task_start", body)
+        if not t.get("ok"): sys.exit(json.dumps(t, ensure_ascii=False))
+        t = t["task"]; show(t, verbose=False)
+        if not a.watch: return
+        seen = None
+        while t["status"] in ("queued", "running"):
+            time.sleep(5); t = call("coding_task", {"id": t["task_id"]})["task"]
+            key = (t["status"], t.get("step"), len(t.get("rounds", [])))
+            if key != seen:
+                seen = key; print(time.strftime("%H:%M:%S"), t["status"], t.get("step"))
+        show(t)
+    elif a.action == "list":
+        for t in call("coding_tasks", {"limit": a.limit})["tasks"]:
+            show(t, verbose=False)
+    elif a.action == "show":
+        show(call("coding_task", {"id": a.id})["task"])
+    elif a.action == "cancel":
+        out(call("coding_task_cancel", {"id": a.id}))
+
+
+def cmd_desktop(a):
+    """permissions: show Screen Recording / Accessibility status of the running bridge; request: make macOS prompt for both."""
+    out(call("desktop_permissions", {"request": a.action == "request"}))
+
+
+def cmd_funnel(a):
+    out(call("funnel", {"action": a.action}))
+
+
+def cmd_killswitch(a):
+    print("kill switch: Funnel entry off, all tokens revoked, all bridge jobs cancelled, browser closed")
+    out(call("killswitch"))
+    if a.stop:
+        cmd_stop(a)
+
+
+def cmd_audit(a):
+    for r in reversed(call("audit", {"limit": a.limit})["audit"]):
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(r["ts"])), r["tool"], r.get("workspace_id") or "-", r["summary"][:160])
+
+
+def cmd_homelab(a):
+    from bridge.config import SECRETS_DIR
+    p = SECRETS_DIR / "homelab.json"
+    d = json.loads(p.read_text()) if p.exists() else {}
+    if a.action == "set-paperless":
+        # Either a Paperless-ngx DRF API token (preferred) or an explicit user/password pair.
+        tok = getpass.getpass("Paperless API token (blank to use user/password): ")
+        d["paperless"] = {"token": tok} if tok else {"user": input("Paperless user: "), "password": getpass.getpass("Paperless password: ")}
+        p.write_text(json.dumps(d)); os.chmod(p, 0o600); print("saved (0600)")
+    else:
+        from bridge.homelab import status; out(status())
+
+
+def cmd_backup(a):
+    import shutil, tarfile
+    dest = STATE / "backups" / f"bridge-state-{time.strftime('%Y%m%d-%H%M%S')}.tar.gz"
+    with tarfile.open(dest, "w:gz") as t:
+        for f in ("bridge.sqlite3", "config.json", "secrets"):
+            if (STATE / f).exists():
+                t.add(STATE / f, arcname=f)
+    os.chmod(dest, 0o600); print("backup:", dest)
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="bridgectl")
+    sp = ap.add_subparsers(dest="cmd", required=True)
+    for n in ("start", "stop", "status", "doctor", "backup", "clients"):
+        sp.add_parser(n)
+    sp.add_parser("passphrase").add_argument("action", choices=["set"])
+    pu = sp.add_parser("public-url", help="set OAuth/MCP public URL and restart"); pu.add_argument("url"); pu.add_argument("--no-restart", action="store_true")
+    br = sp.add_parser("browser"); br.add_argument("action", choices=["clone-profile", "use-comet", "reset"])
+    br.add_argument("--executable"); br.add_argument("--profile")
+    w = sp.add_parser("workspace"); w.add_argument("action", choices=["add", "list", "revoke", "profiles"]); w.add_argument("root_or_id", nargs="?")
+    w.add_argument("--name"); w.add_argument("--profiles", default="sandboxed"); w.add_argument("--network", default=None); w.add_argument("--days", type=float, default=30)
+    w.add_argument("--notes", default=""); w.add_argument("--add"); w.add_argument("--remove")
+    g = sp.add_parser("grant"); g.add_argument("action", choices=["add", "list", "revoke"]); g.add_argument("workspace_id", nargs="?"); g.add_argument("kind", nargs="?")
+    g.add_argument("params", nargs="*"); g.add_argument("--hours", type=float, default=24); g.add_argument("--max-uses", type=int, default=None)
+    t = sp.add_parser("tokens"); t.add_argument("action", choices=["list", "revoke-all"])
+    j = sp.add_parser("jobs"); j.add_argument("action", choices=["list", "cancel", "cancel-all"]); j.add_argument("id", nargs="?"); j.add_argument("--limit", type=int, default=30)
+    ag = sp.add_parser("agents", help="sub-agent runs (chatgpt.com conversations started by agent_start)"); ag.add_argument("action", choices=["list", "cancel"]); ag.add_argument("id", nargs="?"); ag.add_argument("--limit", type=int, default=30)
+    pl = sp.add_parser("pipelines", help="multi-stage sub-agent pipelines (agent_pipeline)"); pl.add_argument("action", choices=["list", "cancel"]); pl.add_argument("id", nargs="?"); pl.add_argument("--limit", type=int, default=20)
+    tk = sp.add_parser("task", help="coding_task: implement -> test -> fix on a branch, via sub-agent conversations in the user's own ChatGPT")
+    tk.add_argument("action", choices=["start", "list", "show", "cancel"]); tk.add_argument("task", nargs="?", help="what to change (start) or task id (show/cancel)")
+    tk.add_argument("--workspace", "-w"); tk.add_argument("--repo", default="."); tk.add_argument("--test", "-t", default=None, help="test command (zsh), cwd = worktree")
+    tk.add_argument("--rounds", type=int, default=3); tk.add_argument("--effort", default="extra_high"); tk.add_argument("--agent"); tk.add_argument("--profile")
+    tk.add_argument("--notes"); tk.add_argument("--branch"); tk.add_argument("--protect", action="append", help="file the agent must not change (repeatable)"); tk.add_argument("--no-baseline", action="store_true"); tk.add_argument("--watch", action="store_true"); tk.add_argument("--limit", type=int, default=20)
+    dk = sp.add_parser("desktop", help="Screen Recording / Accessibility permission of the bridge process"); dk.add_argument("action", choices=["permissions", "request"])
+    f = sp.add_parser("funnel"); f.add_argument("action", choices=["on", "off", "status"])
+    k = sp.add_parser("killswitch"); k.add_argument("--stop", action="store_true", help="also unload the launchd service")
+    au = sp.add_parser("audit"); au.add_argument("--limit", type=int, default=50)
+    h = sp.add_parser("homelab"); h.add_argument("action", choices=["status", "set-paperless"])
+    a = ap.parse_args()
+    if a.cmd == "workspace":
+        if a.action == "add":
+            if not a.root_or_id: sys.exit("usage: bridgectl workspace add <dir> --name <n> [--profiles sandboxed,trusted-host] [--network off|public] [--days 30]")
+            a.root = a.root_or_id; a.name = a.name or Path(a.root).name; a.network = a.network or "off"
+        else:
+            a.id = a.root_or_id
+    if a.cmd == "grant" and a.action == "add" and (not a.workspace_id or not a.kind):
+        sys.exit("usage: bridgectl grant add <workspace_id> <kind> key=value ... [--hours 24] [--max-uses N]\n"
+                 "kinds: git_push remote=<name> branch=<branch> [commit=<sha>] | ssh_host host=<alias> | desktop screen=*")
+    if a.cmd == "task":
+        if a.action == "start" and not a.workspace: sys.exit("bridgectl task start needs --workspace <id|name>")
+        if a.action in ("show", "cancel"): a.id = a.task
+    if a.cmd == "grant" and a.action == "revoke":
+        a.id = a.workspace_id
+    globals()[f"cmd_{a.cmd}"](a)
+
+
+if __name__ == "__main__":
+    main()

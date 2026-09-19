@@ -1,0 +1,37 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.hanpuli/cait-local-bridge",
+  "title": "Cait Local Bridge",
+  "description": "Local-first MCP bridge for scoped files, shells, browsers and semantic macOS UI control.",
+  "repository": {
+    "url": "https://github.com/HanpuLi/cait-local-bridge",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "cait-local-bridge",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "uvx",
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "cait-local-bridge-stdio"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "CLB_WORKSPACE_ROOT",
+          "description": "Absolute path to the local directory this stdio server may expose as a sandboxed workspace.",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

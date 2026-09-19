@@ -1,0 +1,39 @@
+name: Bug report
+description: Report reproducible incorrect behavior
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private hostnames, browser profiles, personal paths or other operator data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Minimal steps using synthetic or redacted data.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Cait Local Bridge version
+      placeholder: 0.1.0
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and architecture
+  - type: textarea
+    id: permission
+    attributes:
+      label: Relevant workspace profile / grant
+      description: For example sandboxed, trusted-host, desktop. Do not paste secrets.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs or traceback

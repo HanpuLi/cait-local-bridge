@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a concrete capability or policy improvement
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user or maintainer problem before proposing an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Security and permission boundary
+      description: What authority would this feature need, and how should the operator grant it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed scope
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

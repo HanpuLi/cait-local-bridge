@@ -1,0 +1,28 @@
+name: Platform support
+description: Propose or report work for a new OS, desktop, shell or browser backend
+title: "[Platform] "
+body:
+  - type: input
+    id: platform
+    attributes:
+      label: Platform / version
+      placeholder: Ubuntu 26.04 / Wayland, Windows 11 / ConPTY, Firefox 145...
+    validations:
+      required: true
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Concrete use case
+    validations:
+      required: true
+  - type: textarea
+    id: equivalent
+    attributes:
+      label: Security-equivalent boundary
+      description: How can the existing workspace/grant semantics be preserved on this platform?
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: How it can be tested in CI

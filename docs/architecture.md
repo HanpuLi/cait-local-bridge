@@ -1,0 +1,30 @@
+# Architecture
+
+Cait Local Bridge is a control plane around local execution surfaces. The connected MCP client supplies intent; the bridge resolves that intent into bounded operations and records what actually ran.
+
+## Layers
+
+1. Transport/authentication. bridge.server provides OAuth-protected streamable HTTP. bridge.stdio is a separate local-only stdio process. The HTTP process never enables the stdio trust shortcut.
+2. Workspace and grant policy. bridge.policy maps opaque workspace IDs to roots, profiles, network mode and parameter-bound grants.
+3. Execution surfaces:
+   - bridge.files: reads, search, atomic writes, patches and trash-based deletion.
+   - bridge.jobs / bridge.shells: one-shot jobs, PTYs and persistent zsh sessions.
+   - bridge.gitops: Git reads plus grant-gated publishing.
+   - bridge.browser: managed Playwright plus explicitly configured loopback CDP attachment.
+   - bridge.desktop / bridge.semantic_ui: macOS input, screenshots and Accessibility-first semantic control.
+4. State and orchestration. SQLite stores workspaces, grants, jobs, state, schedules, auth state and audit receipts. Higher-level orchestration composes the same primitives rather than bypassing policy.
+5. Operator-only integrations. HomeLab endpoints, browser profiles, workspace paths, hostnames, sidecars and credentials live in local config/state rather than public source.
+
+## Public/private boundary
+
+The public repository contains reusable runtime code, tests, docs, examples and packaging. It must not contain actual workspace IDs, personal paths, private hostnames/endpoints, browser profiles, credentials or machine evidence.
+
+The operational repository may contain private acceptance evidence. Maintainers construct this public tree from an explicit allowlist and fresh Git history before publication. Public releases never inherit the private repository history; the public tree validates its own required files and private-marker invariants with `scripts/verify_public_tree.py`.
+
+## Mutation model
+
+Mutating file APIs use optimistic concurrency where applicable: a changed observed file fails with conflict rather than being overwritten. Retriable operations use idempotency keys where supported. Destructive file deletion moves into bridge-managed trash rather than using rm -rf.
+
+## Platform boundary
+
+The first production runtime is macOS. Seatbelt, Accessibility, Quartz and AppKit are macOS-specific. Platform-neutral policy/file logic should remain separable so future adapters do not require false claims of current Linux or Windows parity.
