@@ -2,6 +2,16 @@
 
 All notable public changes are recorded here. The project follows Semantic Versioning once a public release exists.
 
+## [0.2.2] - 2026-09-19
+
+Workspace-policy, diagnostics and audit-export hardening.
+
+- Reject C0/C1 control characters, parent traversal, and nested or broken symlink ancestors that resolve outside a workspace; document the remaining same-user TOCTOU boundary honestly.
+- Add `scoperail workspace doctor` for read-only workspace/path diagnostics.
+- Add `scoperail audit export` as a local-only, deterministic JSON/JSONL audit view with conservative redaction and fail-closed handling for unknown event types.
+- Stop persisting raw scheduled commands in new audit summaries and redact command tails from compatible historical schedule rows.
+- Extend path-policy and audit-export regression coverage while retaining the existing public-tree, gitleaks and CodeQL checks.
+
 ## [0.2.1] - 2026-09-19
 
 Security and release-engineering hardening.
