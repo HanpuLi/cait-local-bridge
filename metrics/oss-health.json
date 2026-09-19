@@ -1,11 +1,11 @@
 {
   "repository": "HanpuLi/scoperail",
   "repository_status": "ok",
-  "last_updated": "2026-09-19T04:17:59.088458+00:00",
+  "last_updated": "2026-09-19T04:21:49.157805+00:00",
   "stars": 0,
   "forks": 0,
   "open_issues": 7,
-  "releases": 1,
+  "releases": 2,
   "external_contributors_12m": 0,
   "external_merged_prs_12m": 0,
   "package": "scoperail",
@@ -25,7 +25,7 @@
     "reason": "No reliable ecosystem-agnostic public API is assumed."
   },
   "openssf_criticality": {
-    "value": 0.12244,
+    "value": 0.12854,
     "status": "measured",
     "source": "OpenSSF criticality_score",
     "method": "v2 CLI, deps.dev disabled; GitHub signals only",
