@@ -97,8 +97,18 @@ def cmd_status(a):
     pid = next((l.split("=")[1].strip() for l in r.stdout.splitlines() if l.strip().startswith("pid =")), None)
     print(f"launchd: {state} label={label} pid={pid}")
     try:
-        s = call("status"); print(f"bridge: pid={s['pid']} public_url={s['public_url']} passphrase={'set' if s['passphrase_configured'] else 'NOT SET'} "
-                                  f"workspaces={len([w for w in s['workspaces'] if w['active']])} active_jobs={len(s['active_jobs'])} live_tokens={s['live_access_tokens']} clients={s['oauth_clients']}")
+        s = call("status")
+        public_url = str(s.get("public_url") or "")
+        login_state = "configured" if bool(s.get("login_configured")) else "NOT CONFIGURED"
+        workspace_count = sum(1 for w in s.get("workspaces", []) if w.get("active"))
+        active_job_count = len(s.get("active_jobs", []))
+        token_count = int(s.get("live_access_tokens") or 0)
+        client_count = int(s.get("oauth_clients") or 0)
+        print(
+            f"bridge: pid={int(s['pid'])} public_url={public_url} login={login_state} "
+            f"workspaces={workspace_count} active_jobs={active_job_count} "
+            f"live_tokens={token_count} clients={client_count}"
+        )
     except SystemExit as e:
         print(e)
     c = cfg(); mount = c.get("funnel_path", "/gw")
@@ -355,16 +365,59 @@ def cmd_audit(a):
 
 
 def cmd_homelab(a):
-    from bridge.config import SECRETS_DIR
-    p = SECRETS_DIR / "homelab.json"
-    d = json.loads(p.read_text()) if p.exists() else {}
+    from bridge.homelab import (
+        PAPERLESS_KEYCHAIN_SERVICE,
+        paperless_credential_metadata,
+        remove_paperless_metadata,
+        status,
+        write_paperless_metadata,
+    )
+
     if a.action == "set-paperless":
-        # Either a Paperless-ngx DRF API token (preferred) or an explicit user/password pair.
-        tok = getpass.getpass("Paperless API token (blank to use user/password): ")
-        d["paperless"] = {"token": tok} if tok else {"user": input("Paperless user: "), "password": getpass.getpass("Paperless password: ")}
-        p.write_text(json.dumps(d)); os.chmod(p, 0o600); print("saved (0600)")
+        mode = (input("Paperless auth [token/password] (token): ").strip().lower() or "token")
+        if mode not in {"token", "password"}:
+            sys.exit("auth mode must be token or password")
+        account = "api-token" if mode == "token" else input("Paperless user: ").strip()
+        if not account:
+            sys.exit("Paperless user must not be empty")
+
+        previous = paperless_credential_metadata()
+        print("macOS Keychain will prompt for the token/password twice. The secret is never read by scoperailctl.")
+        result = subprocess.run([
+            "/usr/bin/security",
+            "add-generic-password",
+            "-a", account,
+            "-s", PAPERLESS_KEYCHAIN_SERVICE,
+            "-U",
+            "-w",
+        ])
+        if result.returncode != 0:
+            sys.exit("Keychain update failed; Paperless metadata was not changed")
+
+        write_paperless_metadata(mode, account)
+        old_account = previous.get("account")
+        if old_account and old_account != account:
+            subprocess.run(
+                ["/usr/bin/security", "delete-generic-password", "-a", old_account, "-s", PAPERLESS_KEYCHAIN_SERVICE],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        print("Paperless credential saved in macOS Keychain; only non-secret lookup metadata is stored by ScopeRail.")
+    elif a.action == "remove-paperless":
+        meta = paperless_credential_metadata()
+        account = meta.get("account")
+        if account:
+            subprocess.run(
+                ["/usr/bin/security", "delete-generic-password", "-a", account, "-s", PAPERLESS_KEYCHAIN_SERVICE],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        remove_paperless_metadata()
+        print("Paperless credential metadata removed; matching Keychain item removed when present.")
     else:
-        from bridge.homelab import status; out(status())
+        out(status())
 
 
 def cmd_backup(a):
@@ -404,7 +457,7 @@ def main():
     f = sp.add_parser("funnel"); f.add_argument("action", choices=["on", "off", "status"])
     k = sp.add_parser("killswitch"); k.add_argument("--stop", action="store_true", help="also unload the launchd service")
     au = sp.add_parser("audit"); au.add_argument("--limit", type=int, default=50)
-    h = sp.add_parser("homelab"); h.add_argument("action", choices=["status", "set-paperless"])
+    h = sp.add_parser("homelab"); h.add_argument("action", choices=["status", "set-paperless", "remove-paperless"])
     a = ap.parse_args()
     if a.cmd == "workspace":
         if a.action == "add":
