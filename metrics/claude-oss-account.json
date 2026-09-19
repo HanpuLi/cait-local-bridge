@@ -1,0 +1,204 @@
+{
+  "owner": "HanpuLi",
+  "status": "ok",
+  "window_start": "2025-09-19T11:18:19.290967+00:00",
+  "window_end": "2026-09-19T11:18:19.290967+00:00",
+  "last_updated": "2026-09-19T11:18:19.290967+00:00",
+  "observable_general_eligibility": {
+    "github_account_created_at": "2019-11-01T15:19:35Z",
+    "public_source_repositories": 9,
+    "latest_public_repository_push_at": "2026-09-19T11:09:18Z",
+    "repositories_with_detected_license": {},
+    "note": "Age/residence/sanctions and Anthropic employment/household conditions require personal attestation."
+  },
+  "maintainer_track": {
+    "external_public_merged_prs_12m": {
+      "value": 0,
+      "threshold": 100,
+      "owned_repo_merged_prs_excluded": 36,
+      "qualifying_prs": []
+    },
+    "external_human_contributors_12m": {
+      "highest_repository": null,
+      "value": 0,
+      "threshold": 20,
+      "per_repository": {
+        "HanpuLi/London_chinatown": 0,
+        "HanpuLi/scoperail": 0,
+        "HanpuLi/liuzheng": 0,
+        "HanpuLi/hanpuli.github.io": 0,
+        "HanpuLi/cici-fitness": 0,
+        "HanpuLi/phosignal": 0,
+        "HanpuLi/shepperton-spatial-audit": 0,
+        "HanpuLi/first-love-verification": 0,
+        "HanpuLi/Skin-Care-Cait": 0
+      },
+      "note": "Repository owner and obvious bot accounts are excluded."
+    },
+    "openssf_criticality": {
+      "highest_repository": "HanpuLi/shepperton-spatial-audit",
+      "value": 0.18142,
+      "threshold": 0.4,
+      "method": "OpenSSF criticality_score v2.0.4, deps.dev disabled; GitHub signals only",
+      "full_default_status": "not_measured",
+      "note": "All nine public source repositories were measured on 2026-09-19. Full deps.dev-enriched scores remain unavailable."
+    },
+    "dependent_repositories": {
+      "value": null,
+      "threshold": 500,
+      "status": "unavailable",
+      "reason": "No reliable account-level public API count collected."
+    },
+    "dependent_packages": {
+      "value": null,
+      "threshold": 100,
+      "status": "unavailable",
+      "reason": "No reliable account-level public API count collected."
+    },
+    "monthly_package_downloads": {
+      "value": null,
+      "threshold": 200000,
+      "status": "unavailable",
+      "reason": "No qualifying public-registry package download evidence collected at account level."
+    },
+    "recognized_foundation_or_language_role": {
+      "value": null,
+      "status": "requires_applicant_evidence"
+    }
+  },
+  "repositories": {
+    "HanpuLi/London_chinatown": {
+      "merged_prs_total_12m": 5,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [],
+      "openssf_criticality": {
+        "value": 0.17474,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/scoperail": {
+      "merged_prs_total_12m": 8,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [],
+      "openssf_criticality": {
+        "value": 0.13792,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/liuzheng": {
+      "merged_prs_total_12m": 5,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [
+        "dependabot[bot]"
+      ],
+      "openssf_criticality": {
+        "value": 0.14152,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/hanpuli.github.io": {
+      "merged_prs_total_12m": 1,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [],
+      "openssf_criticality": {
+        "value": 0.15441,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/cici-fitness": {
+      "merged_prs_total_12m": 3,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [
+        "dependabot[bot]"
+      ],
+      "openssf_criticality": {
+        "value": 0.17681,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/phosignal": {
+      "merged_prs_total_12m": 5,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [
+        "dependabot[bot]"
+      ],
+      "openssf_criticality": {
+        "value": 0.13138,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/shepperton-spatial-audit": {
+      "merged_prs_total_12m": 6,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [],
+      "openssf_criticality": {
+        "value": 0.18142,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/first-love-verification": {
+      "merged_prs_total_12m": 3,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [],
+      "openssf_criticality": {
+        "value": 0.13114,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    },
+    "HanpuLi/Skin-Care-Cait": {
+      "merged_prs_total_12m": 1,
+      "unique_external_human_contributors_12m": 0,
+      "external_human_contributors": [],
+      "excluded_bot_authors": [],
+      "openssf_criticality": {
+        "value": 0.15928,
+        "status": "measured",
+        "source": "OpenSSF criticality_score",
+        "method": "v2.0.4 CLI, deps.dev disabled; GitHub signals only",
+        "full_default_status": "not_measured",
+        "note": "Measured 2026-09-19; full deps.dev-enriched score may differ and requires Google Cloud ADC."
+      }
+    }
+  },
+  "anti_gaming_note": "Do not create trivial PRs, fake contributors, artificial dependents or repeated downloads to change these values."
+}
