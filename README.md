@@ -81,7 +81,7 @@ The managed browser uses a ScopeRail-owned profile. A trusted-host workspace may
 
 A source checkout can run the full HTTP service with OAuth 2.1, PKCE, dynamic client registration, token rotation/revocation and DNS-rebinding protections. The admin plane listens separately on loopback and is not exposed through the public MCP route.
 
-See [docs/quickstart.md](docs/quickstart.md), [docs/permissions.md](docs/permissions.md), [docs/workspaces.md](docs/workspaces.md), and [docs/audit.md](docs/audit.md).
+See [docs/quickstart.md](docs/quickstart.md), [docs/permissions.md](docs/permissions.md), [docs/workspaces.md](docs/workspaces.md), [docs/files.md](docs/files.md), and [docs/audit.md](docs/audit.md).
 
 ## Development
 

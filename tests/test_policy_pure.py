@@ -78,6 +78,10 @@ class WorkspacePathPolicyTests(unittest.TestCase):
                     resolve_in_workspace(self.ws, rel, allow_root=False)
                 self.assertEqual(ctx.exception.code, "invalid_argument")
 
+    def test_root_level_new_child_is_not_mistaken_for_workspace_root(self) -> None:
+        target = resolve_in_workspace(self.ws, "new.txt", must_exist=False, allow_root=False)
+        self.assertEqual(target, self.root / "new.txt")
+
     def test_normalized_parent_component_remains_fail_closed(self) -> None:
         with self.assertRaises(BridgeError):
             resolve_in_workspace(self.ws, "inside/../inside/file.txt")

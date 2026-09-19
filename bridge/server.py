@@ -348,10 +348,17 @@ def file_write(workspace_id: str, path: str, content: str, expected_sha256: str 
     return _ok(files.write(workspace_id, path, content, expected_sha256, create_only, encoding, base64_content, _subject), workspace_id=workspace_id)
 
 
+@tool("file_write_batch", RW)
+@guarded
+def file_write_batch(workspace_id: str, mutations: list[dict], _subject: str = "") -> CallToolResult:
+    """Bounded multi-file whole-content write (max 64 files / 8 MiB). Validates every path and optimistic hash, stages every payload, then begins per-file atomic replaces. Process-level commit failures attempt rollback; no filesystem offers a single atomic transaction across several paths."""
+    return _ok(files.write_batch(workspace_id, mutations, _subject), workspace_id=workspace_id)
+
+
 @tool("file_patch", RW)
 @guarded
 def file_patch(workspace_id: str, unified_diff: str, expected_sha256: dict[str, str] | None = None, _subject: str = "") -> CallToolResult:
-    """Apply a unified diff (one or many files, -p1 paths). Dry-run first; applied all-or-nothing. Returns before/after hashes per file or patch_rejected with the raw output."""
+    """Apply a unified diff (one or many files, -p1 paths) after a dry-run preflight. A rejected dry-run touches nothing, but GNU patch is not a globally atomic multi-path filesystem transaction; use file_write_batch for staged whole-content multi-file updates."""
     return _ok(files.apply_patch(workspace_id, unified_diff, expected_sha256, _subject), workspace_id=workspace_id)
 
 
