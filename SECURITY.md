@@ -65,7 +65,11 @@ Local Git writes are restricted to a non-destructive allowlist. Publishing requi
 
 ## Secrets
 
-Do not store operator credentials, tokens, private endpoints, case data or browser profiles in source control. Runtime secrets belong under the bridge state directory with restrictive permissions or in the OS credential store.
+Do not store operator credentials, tokens, private endpoints, case data or browser profiles in source control. Control-plane bootstrap material that must remain file-backed uses restrictive permissions; service credentials should use an OS credential store or an existing credential helper.
+
+The HomeLab adapters follow that split: Forgejo asks Git's configured credential helper rather than parsing `~/.git-credentials`, and new Paperless credentials are stored in macOS Keychain. `scoperailctl homelab set-paperless` lets the `security` tool prompt for the secret directly, so the management CLI never receives it. Legacy Paperless clear-text state is read only for compatibility and is reported as legacy until the operator reruns that command.
+
+End-to-end OAuth evidence keeps access/refresh tokens separate from the JSON evidence record, and the standalone test client does not persist OAuth tokens.
 
 Before a public release, run `python scripts/verify_public_tree.py` in the public tree and require the CI secret scan to pass. The maintainer's private-to-public export step runs additional private-marker checks and gitleaks before this tree is created.
 

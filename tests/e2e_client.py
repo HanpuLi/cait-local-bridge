@@ -5,9 +5,17 @@ MCP Python client. Prints a JSON evidence record. Usage:
 """
 from __future__ import annotations
 import argparse, asyncio, base64, hashlib, json, os, re, secrets, shlex, sys, time, urllib.parse
+from dataclasses import dataclass
 from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import httpx
+
+
+@dataclass(frozen=True)
+class OAuthSecrets:
+    access_token: str
+    refresh_token: str | None
+    revoked_access_token: str
 
 
 def pkce():
@@ -16,8 +24,15 @@ def pkce():
     return v, c
 
 
-def oauth_flow(base: str, passphrase: str, public: str | None, redirect="http://localhost:9/cb", wrong_passphrase_first=False) -> dict:
-    ev = {}
+def oauth_flow(
+    base: str,
+    passphrase: str,
+    public: str | None,
+    redirect="http://localhost:9/cb",
+    wrong_passphrase_first=False,
+    evidence: dict | None = None,
+) -> OAuthSecrets:
+    ev = evidence if evidence is not None else {}
     c = httpx.Client(base_url=base, follow_redirects=False, timeout=30, headers={"Host": urllib.parse.urlsplit(public or base).netloc})
     meta = c.get("/.well-known/oauth-authorization-server").json(); ev["metadata"] = meta
     prm = c.get("/.well-known/oauth-protected-resource/mcp").json(); ev["protected_resource"] = prm
@@ -56,13 +71,15 @@ def oauth_flow(base: str, passphrase: str, public: str | None, redirect="http://
     rf2 = c.post("/token", data={"grant_type": "refresh_token", "refresh_token": t["refresh_token"], "client_id": client["client_id"]})
     ev["old_refresh_rejected_after_rotation"] = rf2.status_code == 400
     t2 = rf.json() if rf.status_code == 200 else t
-    ev["access_token"] = t2["access_token"]; ev["refresh_token"] = t2.get("refresh_token")
-    # revocation: a second, independent login (token family B) is revoked; family A stays valid for the tool calls
+    access_token = t2["access_token"]
+    refresh_token = t2.get("refresh_token")
+    # Revocation: a second, independent login (token family B) is revoked; family A stays valid for tool calls.
+    # Secrets are returned separately from evidence so the JSON evidence record can never serialize them.
     tb = _second_login(c, client, passphrase, redirect)
-    rv = c.post("/revoke", data={"token": tb["access_token"], "client_id": client["client_id"], "client_secret": ""})
+    revoked_access_token = tb["access_token"]
+    rv = c.post("/revoke", data={"token": revoked_access_token, "client_id": client["client_id"], "client_secret": ""})
     ev["revoke_status"] = rv.status_code
-    ev["old_access_token"] = tb["access_token"]   # must be rejected afterwards (family revoked)
-    return ev
+    return OAuthSecrets(access_token, refresh_token, revoked_access_token)
 
 
 def _second_login(c, client, passphrase, redirect):
@@ -201,10 +218,11 @@ def main():
     a = ap.parse_args()
     pw = os.environ.get(a.passphrase_env) or sys.exit("passphrase env missing")
     ev = {"started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "base": a.base, "public": a.public}
-    ev["oauth"] = oauth_flow(a.base, pw, a.public, wrong_passphrase_first=True)
-    tok = ev["oauth"].pop("access_token"); old = ev["oauth"].pop("old_access_token"); ev["oauth"].pop("refresh_token", None)
-    ev["mcp"] = asyncio.run(mcp_calls(a.base, tok, a.public, a.ws_root, {"browser_url": a.browser_url, "git_remote": a.git_remote}))
-    ev["rejections"] = asyncio.run(bad_token_probe(a.base, old, a.public))
+    oauth_evidence = {}
+    oauth = oauth_flow(a.base, pw, a.public, wrong_passphrase_first=True, evidence=oauth_evidence)
+    ev["oauth"] = oauth_evidence
+    ev["mcp"] = asyncio.run(mcp_calls(a.base, oauth.access_token, a.public, a.ws_root, {"browser_url": a.browser_url, "git_remote": a.git_remote}))
+    ev["rejections"] = asyncio.run(bad_token_probe(a.base, oauth.revoked_access_token, a.public))
     ev["finished_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     s = json.dumps(ev, indent=1, ensure_ascii=False, default=str)
     if a.out:

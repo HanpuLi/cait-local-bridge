@@ -65,7 +65,7 @@ async def handle(request: Request):
             clients = db.one("SELECT COUNT(*) c FROM oauth_clients")["c"]
             return JSONResponse({"ok": True, "pid": os.getpid(), "state_dir": str(STATE_DIR), "workspaces": policy.workspace_list(True),
                                  "active_jobs": active, "active_agents": [a for a in agents.list_runs(limit=100) if a["status"] in agents.STATUS_ACTIVE], "live_access_tokens": tokens, "oauth_clients": clients,
-                                 "passphrase_configured": auth.passphrase_configured(), "browser_pages": browser.list_pages(), "public_url": CFG["public_url"]})
+                                 "login_configured": auth.passphrase_configured(), "browser_pages": browser.list_pages(), "public_url": CFG["public_url"]})
         if op == "workspace_add":
             return JSONResponse({"ok": True, "workspace": policy.workspace_add(body["root"], body.get("name") or os.path.basename(body["root"]),
                                                                               body.get("profiles") or ["sandboxed"], body.get("network", "off"), body.get("days", 30), body.get("notes", ""))})
