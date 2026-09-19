@@ -12,7 +12,7 @@ Python 3.12+ and `pipx` on macOS:
 
 ```sh
 brew install pipx  # skip if pipx is already installed
-pipx install "https://github.com/HanpuLi/scoperail/releases/download/v0.2.1/scoperail-0.2.1-py3-none-any.whl"
+pipx install "https://github.com/HanpuLi/scoperail/releases/download/v0.2.2/scoperail-0.2.2-py3-none-any.whl"
 SCOPERAIL_WORKSPACE_ROOT="$PWD" scoperail stdio
 ```
 
