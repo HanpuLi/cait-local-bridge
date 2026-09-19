@@ -31,18 +31,56 @@ class WorkspacePathPolicyTests(unittest.TestCase):
             resolve_in_workspace(self.ws, "/tmp", must_exist=False)
 
     def test_symlink_escape_is_rejected_for_existing_and_new_children(self) -> None:
-        outside = Path(tempfile.mkdtemp(prefix="clb-policy-outside-")).resolve()
-        try:
+        with tempfile.TemporaryDirectory(prefix="clb-policy-outside-") as td:
+            outside = Path(td).resolve()
             (outside / "secret.txt").write_text("no\n")
             (self.root / "escape").symlink_to(outside, target_is_directory=True)
             with self.assertRaises(BridgeError):
                 resolve_in_workspace(self.ws, "escape/secret.txt")
             with self.assertRaises(BridgeError):
                 resolve_in_workspace(self.ws, "escape/new.txt", must_exist=False)
-        finally:
-            for child in outside.iterdir():
-                child.unlink()
-            outside.rmdir()
+
+    def test_nested_symlink_components_cannot_escape(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="clb-policy-outside-") as td:
+            outside = Path(td).resolve()
+            (outside / "secret").mkdir()
+            (self.root / "inside" / "hop").symlink_to(outside / "secret", target_is_directory=True)
+            with self.assertRaises(BridgeError):
+                resolve_in_workspace(self.ws, "inside/hop/new.txt", must_exist=False)
+
+    def test_broken_symlink_parent_escape_is_rejected_for_proposed_child(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="clb-policy-outside-") as td:
+            outside = Path(td).resolve()
+            missing_outside = outside / "not-created"
+            (self.root / "broken").symlink_to(missing_outside, target_is_directory=True)
+            self.assertFalse((self.root / "broken").exists())
+            self.assertTrue((self.root / "broken").is_symlink())
+            with self.assertRaises(BridgeError):
+                resolve_in_workspace(self.ws, "broken/new.txt", must_exist=False)
+
+    def test_workspace_root_aliases_and_normalization(self) -> None:
+        self.assertEqual(resolve_in_workspace(self.ws, "."), self.root)
+        self.assertEqual(resolve_in_workspace(self.ws, ""), self.root)
+        self.assertEqual(resolve_in_workspace(self.ws, "./inside/file.txt"), self.root / "inside" / "file.txt")
+        self.assertEqual(resolve_in_workspace(self.ws, str(self.root)), self.root)
+
+    def test_control_characters_are_rejected(self) -> None:
+        for rel in ("inside/evil\x00name", "inside/evil\nname", "inside/evil\tname", "inside/evil\x7fname", "inside/evil\x85name"):
+            with self.subTest(path=repr(rel)):
+                with self.assertRaises(BridgeError) as ctx:
+                    resolve_in_workspace(self.ws, rel, must_exist=False)
+                self.assertEqual(ctx.exception.code, "invalid_argument")
+
+    def test_root_operation_can_be_disallowed(self) -> None:
+        for rel in (".", "", str(self.root)):
+            with self.subTest(path=rel):
+                with self.assertRaises(BridgeError) as ctx:
+                    resolve_in_workspace(self.ws, rel, allow_root=False)
+                self.assertEqual(ctx.exception.code, "invalid_argument")
+
+    def test_normalized_parent_component_remains_fail_closed(self) -> None:
+        with self.assertRaises(BridgeError):
+            resolve_in_workspace(self.ws, "inside/../inside/file.txt")
 
 
 class NetworkPolicyTests(unittest.TestCase):
