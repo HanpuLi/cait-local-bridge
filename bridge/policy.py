@@ -70,6 +70,81 @@ def workspace_list(include_revoked: bool = False) -> list[dict]:
     return out
 
 
+def workspace_find(identifier: str) -> dict:
+    """Find a registered workspace by opaque ID or canonical/root path without enforcing liveness."""
+    if not identifier:
+        raise BridgeError("invalid_argument", "workspace identifier is required")
+    if identifier.startswith("ws_"):
+        r = db.one("SELECT * FROM workspaces WHERE id=?", identifier)
+    else:
+        root = str(Path(identifier).expanduser().resolve(strict=False))
+        r = db.one("SELECT * FROM workspaces WHERE root=?", root)
+    if not r:
+        raise BridgeError("not_found", f"unknown workspace {identifier}")
+    w = dict(r)
+    w["profiles"] = json.loads(w["profiles"])
+    return w
+
+
+def workspace_doctor(identifier: str, path: str | None = None) -> dict:
+    """Return a stable, read-only diagnostic view of a registered workspace and optional path."""
+    w = workspace_find(identifier)
+    now = time.time()
+    root = Path(w["root"])
+    revoked = bool(w["revoked"])
+    expired = bool(w["expires_at"] and w["expires_at"] < now)
+    root_available = root.is_dir()
+    active = not revoked and not expired and root_available
+    state = "revoked" if revoked else "expired" if expired else "offline" if not root_available else "active"
+
+    result = {
+        "workspace": {
+            "id": w["id"],
+            "name": w["name"],
+            "root": w["root"],
+            "profiles": list(w["profiles"]),
+            "network": w["network"],
+            "expires_at": w["expires_at"],
+            "revoked": revoked,
+            "expired": expired,
+            "root_available": root_available,
+            "active": active,
+            "state": state,
+        }
+    }
+
+    if path is not None:
+        if not root_available:
+            result["path"] = {
+                "input": path,
+                "allowed": False,
+                "error": "offline",
+                "message": "workspace root is unavailable",
+            }
+        else:
+            try:
+                resolved = resolve_in_workspace(w, path, must_exist=False)
+                result["path"] = {
+                    "input": path,
+                    "allowed": True,
+                    "resolved": str(resolved),
+                    "exists": resolved.exists() or resolved.is_symlink(),
+                }
+            except BridgeError as exc:
+                safe_message = {
+                    "permission_denied": "path rejected by workspace boundary",
+                    "invalid_argument": "path is invalid for this operation",
+                    "not_found": "path not found in workspace",
+                }.get(exc.code, "path check failed")
+                result["path"] = {
+                    "input": path,
+                    "allowed": False,
+                    "error": exc.code,
+                    "message": safe_message,
+                }
+    return result
+
+
 def workspace_revoke(wid: str) -> None:
     db.q("UPDATE workspaces SET revoked=1 WHERE id=?", wid)
 
