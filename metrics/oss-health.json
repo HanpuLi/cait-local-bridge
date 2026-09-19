@@ -1,7 +1,7 @@
 {
   "repository": "HanpuLi/cait-local-bridge",
   "repository_status": "ok",
-  "last_updated": "2026-09-19T03:41:20.184268+00:00",
+  "last_updated": "2026-09-19T04:00:46.798141+00:00",
   "stars": 0,
   "forks": 0,
   "open_issues": 7,
@@ -25,9 +25,12 @@
     "reason": "No reliable ecosystem-agnostic public API is assumed."
   },
   "openssf_criticality": {
-    "value": null,
-    "status": "not_claimed",
-    "reason": "Report a score only after an official OpenSSF source indexes this repository."
+    "value": 0.12232,
+    "status": "measured",
+    "source": "OpenSSF criticality_score",
+    "method": "v2 CLI, deps.dev disabled; GitHub signals only",
+    "full_default_status": "not_measured",
+    "note": "The full deps.dev-enriched run may differ and requires Google Cloud ADC."
   },
   "mcp_registry": {
     "published": false,

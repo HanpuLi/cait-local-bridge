@@ -43,7 +43,7 @@ Cait Local Bridge became a public Apache-2.0 repository on 2026-09-19 and publis
 | Dependent repositories | unavailable | 500 aggregate across maintained projects | no qualifying evidence collected yet | `metrics/oss-health.json`; use a reliable dependency source when available |
 | Dependent packages | unavailable | 100 aggregate across maintained projects | no qualifying evidence collected yet | `metrics/oss-health.json`; do not infer a count |
 | Monthly package downloads | unavailable; PyPI package not yet published | 200,000 aggregate monthly | package publication and real adoption required | PyPI/PyPI Stats after publication |
-| OpenSSF criticality | not claimed / not yet evidenced | >= 0.4 for a maintained repository | wait for an official OpenSSF criticality source to index the repository | official OpenSSF source only |
+| OpenSSF criticality | 0.12232 measured with OpenSSF `criticality_score` v2.0.4 using GitHub signals only (`deps.dev` disabled) | >= 0.4 for a maintained repository | measured shortfall 0.27768; the full deps.dev-enriched default score is still unavailable because Google Cloud ADC is not configured | `metrics/oss-health.json`; official OpenSSF CLI |
 | General observable eligibility | GitHub account-age, recent public activity and OSI-license evidence present | all general requirements | personal attestations still apply | GitHub metadata plus applicant attestation |
 
 The public repository also has live CI/security workflows, branch protection, private vulnerability reporting and a small set of independently useful contributor issues. Stars, forks and issue counts may be tracked as project-health context, but they are not substituted for Anthropic's qualifying metrics.

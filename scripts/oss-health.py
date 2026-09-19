@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import shutil
 import subprocess
 import sys
 import urllib.error
@@ -36,7 +37,38 @@ def external_pr_metrics(repo: str) -> dict | None:
         return None
 
 
-def collect(repo: str, package: str, registry_name: str) -> dict:
+def criticality_metric(repo: str, command: str | None = None) -> dict:
+    tool = command or shutil.which("criticality_score")
+    if not tool:
+        return {
+            "value": None,
+            "status": "unavailable",
+            "reason": "OpenSSF criticality_score executable is not installed.",
+        }
+    try:
+        cp = subprocess.run(
+            [tool, "-depsdev-disable", "-format", "json", f"https://github.com/{repo}"],
+            text=True, capture_output=True, check=True, timeout=120,
+        )
+        result = json.loads(cp.stdout)
+        value = float(result["default_score"])
+        return {
+            "value": value,
+            "status": "measured",
+            "source": "OpenSSF criticality_score",
+            "method": "v2 CLI, deps.dev disabled; GitHub signals only",
+            "full_default_status": "not_measured",
+            "note": "The full deps.dev-enriched run may differ and requires Google Cloud ADC.",
+        }
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        return {
+            "value": None,
+            "status": "unavailable",
+            "reason": f"criticality_score failed: {type(exc).__name__}",
+        }
+
+
+def collect(repo: str, package: str, registry_name: str, criticality_command: str | None = None) -> dict:
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     repository_status = "ok"
     try:
@@ -95,11 +127,7 @@ def collect(repo: str, package: str, registry_name: str) -> dict:
             "status": "unavailable",
             "reason": "No reliable ecosystem-agnostic public API is assumed.",
         },
-        "openssf_criticality": {
-            "value": None,
-            "status": "not_claimed",
-            "reason": "Report a score only after an official OpenSSF source indexes this repository.",
-        },
+        "openssf_criticality": criticality_metric(repo, criticality_command),
         "mcp_registry": registry,
     }
 
@@ -109,10 +137,11 @@ def main() -> None:
     ap.add_argument("--repo", default="HanpuLi/cait-local-bridge")
     ap.add_argument("--package", default="cait-local-bridge")
     ap.add_argument("--registry-name", default="io.github.hanpuli/cait-local-bridge")
+    ap.add_argument("--criticality-command", help="path to the official OpenSSF criticality_score executable")
     ap.add_argument("--output", type=Path, default=Path("metrics/oss-health.json"))
     ap.add_argument("--stdout", action="store_true")
     args = ap.parse_args()
-    result = collect(args.repo, args.package, args.registry_name)
+    result = collect(args.repo, args.package, args.registry_name, args.criticality_command)
     rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.stdout:
         print(rendered, end="")

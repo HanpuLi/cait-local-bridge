@@ -12,4 +12,6 @@ python scripts/contributor-metrics.py
 python scripts/oss-health.py
 ```
 
+If the official OpenSSF `criticality_score` CLI is installed, pass it with `--criticality-command /path/to/criticality_score`. The script deliberately uses `-depsdev-disable` for a credential-free GitHub-signal measurement and labels that result accordingly; it does not present that measurement as the full deps.dev-enriched default score.
+
 Do not create trivial pull requests, artificial dependents, repeated downloads or other activity merely to change these numbers.
