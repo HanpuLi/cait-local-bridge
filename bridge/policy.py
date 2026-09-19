@@ -133,14 +133,21 @@ def grant_use(gid: str) -> None:
 
 # ---------- paths ----------
 def resolve_in_workspace(w: dict, rel: str, must_exist: bool = True, allow_root: bool = True) -> Path:
-    """Canonicalise `rel` inside the workspace root. Rejects .., symlink escapes and control characters."""
+    """Canonicalise `rel` inside the workspace root.
+
+    This is a user-space policy check, not a kernel transaction: it rejects lexical
+    traversal, ASCII/C1 control characters and symlink escapes at check time, but a
+    same-user process can still race a later filesystem operation by swapping a path
+    component after validation. Execution confinement is handled separately.
+    """
     if rel is None:
         rel = "."
-    if "\x00" in rel:
-        raise BridgeError("invalid_argument", "path contains NUL")
+    if any(ord(ch) < 0x20 or 0x7F <= ord(ch) <= 0x9F for ch in rel):
+        raise BridgeError("invalid_argument", "path contains control characters")
     root = Path(w["root"]).resolve()
     cand = (root / rel).absolute() if not os.path.isabs(rel) else Path(rel)
-    # lexical check first (before touching the filesystem), then realpath check
+
+    # Lexical checks happen before filesystem resolution.
     try:
         cand.relative_to(root) if not os.path.isabs(rel) else None
     except ValueError:
@@ -152,13 +159,17 @@ def resolve_in_workspace(w: dict, rel: str, must_exist: bool = True, allow_root:
             raise BridgeError("permission_denied", f"absolute path outside workspace: {rel}")
     if ".." in Path(rel).parts:
         raise BridgeError("permission_denied", f"'..' not allowed: {rel}")
+
     if must_exist and not cand.exists() and not cand.is_symlink():
         raise BridgeError("not_found", f"no such path in workspace: {rel}")
-    # symlink escape: resolve the deepest existing ancestor
+
+    # Resolve the deepest existing *or symlink* ancestor. Path.exists() is false for
+    # broken symlinks, so stopping on is_symlink() is required to reject a proposed
+    # child write through a broken link that points outside the workspace.
     probe = cand
-    while not probe.exists() and probe != probe.parent:
+    while not (probe.exists() or probe.is_symlink()) and probe != probe.parent:
         probe = probe.parent
-    real = probe.resolve()
+    real = probe.resolve(strict=False)
     try:
         real.relative_to(root)
     except ValueError:

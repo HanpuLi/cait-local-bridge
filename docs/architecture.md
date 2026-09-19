@@ -25,6 +25,8 @@ The operational repository may contain private acceptance evidence. Maintainers 
 
 Mutating file APIs use optimistic concurrency where applicable: a changed observed file fails with conflict rather than being overwritten. Retriable operations use idempotency keys where supported. Destructive file deletion moves into bridge-managed trash rather than using rm -rf.
 
+Workspace path resolution is deliberately fail-closed. It rejects parent traversal, control characters, lexical escape, and existing or broken symlink ancestors that resolve outside the registered root. This is still a **user-space preflight check**, not a kernel-level filesystem transaction: another process running as the same user can race a validated path component between resolution and a later open/write. Seatbelt confines sandboxed jobs separately, and callers must not describe `resolve_in_workspace` as eliminating same-user TOCTOU races.
+
 ## Platform boundary
 
 The first production runtime is macOS. Seatbelt, Accessibility, Quartz and AppKit are macOS-specific. Platform-neutral policy/file logic should remain separable so future adapters do not require false claims of current Linux or Windows parity.
