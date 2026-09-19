@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -52,6 +53,20 @@ def _workspace_doctor(args: argparse.Namespace) -> None:
             print(f"  path: rejected [{p['error']}] {p['message']}")
 
 
+def _audit_export(args: argparse.Namespace) -> None:
+    from . import audit_export
+
+    try:
+        since = audit_export.parse_time_bound(args.since)
+        until = audit_export.parse_time_bound(args.until)
+        records = audit_export.export_records(since, until, args.workspace_id, args.limit)
+        rendered = audit_export.render(records, args.format)
+    except ValueError as exc:
+        print(f"invalid_argument: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
+    sys.stdout.write(rendered)
+
+
 def _grant(args: argparse.Namespace) -> None:
     from . import policy
 
@@ -97,6 +112,16 @@ def main() -> None:
     doctor.add_argument("--path", help="workspace-relative path to check without mutating it")
     doctor.add_argument("--json", action="store_true", help="print the stable machine-readable result")
     doctor.set_defaults(func=_workspace_doctor)
+
+    audit = sub.add_parser("audit", help="read-only local audit review")
+    audit_sub = audit.add_subparsers(dest="audit_command", required=True)
+    export = audit_sub.add_parser("export", help="export a redacted audit time range to stdout")
+    export.add_argument("--since", help="inclusive epoch seconds or ISO-8601 timestamp")
+    export.add_argument("--until", help="inclusive epoch seconds or ISO-8601 timestamp")
+    export.add_argument("--workspace-id", help="optional exact workspace ID filter")
+    export.add_argument("--format", choices=["jsonl", "json"], default="jsonl")
+    export.add_argument("--limit", type=int, default=10_000, help="maximum rows (1..10000)")
+    export.set_defaults(func=_audit_export)
 
     grant = sub.add_parser("grant", help="create an explicit local capability grant")
     grant.add_argument("workspace_id")
