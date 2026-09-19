@@ -652,7 +652,10 @@ def job_schedule(workspace_id: str, command: list[str] | str, run_at: str | None
     sid = "sch_" + uuid.uuid4().hex[:8]
     spec = {"command": command, "profile": profile, "cwd": cwd, "timeout": timeout_seconds, "interval": interval_seconds, "name": name}
     db.q("INSERT INTO schedules(id,workspace_id,spec,next_run,enabled,created_at) VALUES(?,?,?,?,1,?)", sid, workspace_id, json.dumps(spec), nxt, time.time())
-    db.audit("job_schedule", f"{sid} next={nxt} spec={str(spec)[:200]}", subject=_subject, workspace_id=workspace_id)
+    # Audit metadata only: never persist the scheduled command/env-equivalent arguments in the audit summary.
+    from . import audit_export
+    audit_summary = audit_export.schedule_audit_summary(sid, nxt, profile, cwd, interval_seconds, name)
+    db.audit("job_schedule", audit_summary, subject=_subject, workspace_id=workspace_id)
     return _ok({"schedule_id": sid, "next_run_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(nxt)), "interval_seconds": interval_seconds}, workspace_id=workspace_id)
 
 
