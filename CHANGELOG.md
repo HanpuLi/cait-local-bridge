@@ -2,6 +2,17 @@
 
 All notable public changes are recorded here. The project follows Semantic Versioning once a public release exists.
 
+## [0.2.1] - 2026-09-19
+
+Security and release-engineering hardening.
+
+- Paperless HomeLab credentials now use macOS Keychain; ScopeRail stores only non-secret lookup metadata for new configurations.
+- Forgejo credentials are resolved through Git credential helpers rather than parsing `~/.git-credentials`.
+- OAuth end-to-end evidence no longer serializes access/refresh tokens, and the standalone test client no longer persists them.
+- Release asset handoffs verify `SHA256SUMS`; release reruns preserve existing assets instead of clobbering them.
+- The MCP Registry publisher download is version-pinned and verified by upstream SHA-256 before execution.
+- CodeQL scanning and Dependabot security updates are enabled on the public repository.
+
 ## [0.2.0] - 2026-09-19
 
 Renamed the public project from Cait Local Bridge to **ScopeRail**.

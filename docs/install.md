@@ -5,7 +5,7 @@
 Requirements: macOS, Python 3.12+ and pipx.
 
     brew install pipx  # skip if pipx is already installed
-    pipx install "https://github.com/HanpuLi/scoperail/releases/download/v0.2.0/scoperail-0.2.0-py3-none-any.whl"
+    pipx install "https://github.com/HanpuLi/scoperail/releases/download/v0.2.1/scoperail-0.2.1-py3-none-any.whl"
     scoperail --version
     scoperail init "$PWD"
     scoperail stdio
