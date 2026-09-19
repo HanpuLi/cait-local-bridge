@@ -2,7 +2,7 @@
 
 The least-privilege path is local stdio with one sandboxed workspace.
 
-1. Install: python3 -m pip install cait-local-bridge
+1. Install the current release wheel: pipx install "https://github.com/HanpuLi/cait-local-bridge/releases/download/v0.1.0/cait_local_bridge-0.1.0-py3-none-any.whl"
 2. From a project directory: cait-local-bridge init "$PWD"
 3. Start: cait-local-bridge stdio
 4. Point an MCP client at the cait-local-bridge-stdio executable.

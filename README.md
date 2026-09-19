@@ -8,12 +8,15 @@ It is not just a shell MCP. Shell access is one surface inside a broader permiss
 
 ## Install and run
 
-Python 3.12+ on macOS:
+Python 3.12+ and `pipx` on macOS:
 
 ```sh
-python3 -m pip install cait-local-bridge
+brew install pipx  # skip if pipx is already installed
+pipx install "https://github.com/HanpuLi/cait-local-bridge/releases/download/v0.1.0/cait_local_bridge-0.1.0-py3-none-any.whl"
 CLB_WORKSPACE_ROOT="$PWD" cait-local-bridge stdio
 ```
+
+The tagged GitHub wheel is the current working install path and is tested with `pipx`. PyPI Trusted Publishing is prepared but the first PyPI upload still requires the maintainer's one-time PyPI login; after that, `pipx install cait-local-bridge` is equivalent.
 
 Or register once, then start stdio:
 

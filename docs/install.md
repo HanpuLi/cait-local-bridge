@@ -2,12 +2,15 @@
 
 ## Packaged stdio server
 
-Requirements: macOS and Python 3.12+.
+Requirements: macOS, Python 3.12+ and pipx.
 
-    python3 -m pip install cait-local-bridge
+    brew install pipx  # skip if pipx is already installed
+    pipx install "https://github.com/HanpuLi/cait-local-bridge/releases/download/v0.1.0/cait_local_bridge-0.1.0-py3-none-any.whl"
     cait-local-bridge --version
     cait-local-bridge init "$PWD"
     cait-local-bridge stdio
+
+The tagged GitHub wheel is the current install source until the first PyPI Trusted Publishing upload is completed. After PyPI publication, `pipx install cait-local-bridge` installs the same application.
 
 For an MCP client that launches the package itself, configure CLB_WORKSPACE_ROOT and invoke cait-local-bridge-stdio. MCP Registry metadata uses the same stdio entry point once published.
 
