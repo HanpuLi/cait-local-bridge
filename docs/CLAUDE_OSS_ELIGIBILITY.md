@@ -35,9 +35,20 @@ Age, residence/sanctions and employment/household conditions are personal attest
 
 ## Cait Local Bridge current state
 
-Before its first public release, Cait Local Bridge has 0 public dependents, 0 public package downloads, 0 external merged contributors and no meaningful OpenSSF criticality score. Those values should change only through real publication, use and contribution.
+Cait Local Bridge became a public Apache-2.0 repository on 2026-09-19 and published GitHub Release `v0.1.0` the same day. The baseline below is evidence-driven: an unavailable metric is not silently converted to zero.
 
-Use scripts/contributor-metrics.py for the rolling external-PR count after publication and scripts/oss-health.py for auditable health signals. If an upstream API does not expose a reliable metric, report unavailable rather than inventing a number.
+| Criterion | Current evidence | Threshold | Gap / status | Verification |
+| --- | ---: | ---: | --- | --- |
+| External contributors to this repository | 0 unique external merged-PR authors | 20 in one maintained repository / 12 months | 20 | `metrics/contributors.json` |
+| Dependent repositories | unavailable | 500 aggregate across maintained projects | no qualifying evidence collected yet | `metrics/oss-health.json`; use a reliable dependency source when available |
+| Dependent packages | unavailable | 100 aggregate across maintained projects | no qualifying evidence collected yet | `metrics/oss-health.json`; do not infer a count |
+| Monthly package downloads | unavailable; PyPI package not yet published | 200,000 aggregate monthly | package publication and real adoption required | PyPI/PyPI Stats after publication |
+| OpenSSF criticality | not claimed / not yet evidenced | >= 0.4 for a maintained repository | wait for an official OpenSSF criticality source to index the repository | official OpenSSF source only |
+| General observable eligibility | GitHub account-age, recent public activity and OSI-license evidence present | all general requirements | personal attestations still apply | GitHub metadata plus applicant attestation |
+
+The public repository also has live CI/security workflows, branch protection, private vulnerability reporting and a small set of independently useful contributor issues. Stars, forks and issue counts may be tracked as project-health context, but they are not substituted for Anthropic's qualifying metrics.
+
+Use `scripts/contributor-metrics.py` for the rolling external-PR count and `scripts/oss-health.py` for auditable health signals. If an upstream API does not expose a reliable metric, report unavailable rather than inventing a number.
 
 ## Artificial activity is prohibited
 

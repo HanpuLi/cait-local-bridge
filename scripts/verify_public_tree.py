@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
     "README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "CONTRIBUTING.md",
     "CODE_OF_CONDUCT.md", "ROADMAP.md", "pyproject.toml", "server.json",
+    "metrics/README.md", "metrics/contributors.json", "metrics/oss-health.json",
     "docs/architecture.md", "docs/security-model.md", "docs/permissions.md",
 ]
 FORBIDDEN = {

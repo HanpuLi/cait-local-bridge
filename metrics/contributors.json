@@ -1,0 +1,16 @@
+{
+  "repository": "HanpuLi/cait-local-bridge",
+  "status": "ok",
+  "window_start": "2025-09-19T03:41:19.117106+00:00",
+  "window_end": "2026-09-19T03:41:19.117106+00:00",
+  "unique_external_authors": 0,
+  "authors": {},
+  "qualifying_prs": [],
+  "exclusions": [
+    "repository owner",
+    "GitHub Bot type",
+    "login ending [bot] or -bot"
+  ],
+  "note": "Audit metric only. Do not create or merge trivial PRs to change this count.",
+  "last_updated": "2026-09-19T03:41:19.117106+00:00"
+}

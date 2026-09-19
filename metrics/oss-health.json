@@ -1,0 +1,38 @@
+{
+  "repository": "HanpuLi/cait-local-bridge",
+  "repository_status": "ok",
+  "last_updated": "2026-09-19T03:41:20.184268+00:00",
+  "stars": 0,
+  "forks": 0,
+  "open_issues": 7,
+  "releases": 1,
+  "external_contributors_12m": 0,
+  "external_merged_prs_12m": 0,
+  "package": "cait-local-bridge",
+  "monthly_downloads": {
+    "value": null,
+    "source": "pypistats",
+    "status": "unavailable"
+  },
+  "dependent_repositories": {
+    "value": null,
+    "status": "unavailable",
+    "reason": "GitHub does not expose a reliable public REST count for dependency-graph dependents."
+  },
+  "dependent_packages": {
+    "value": null,
+    "status": "unavailable",
+    "reason": "No reliable ecosystem-agnostic public API is assumed."
+  },
+  "openssf_criticality": {
+    "value": null,
+    "status": "not_claimed",
+    "reason": "Report a score only after an official OpenSSF source indexes this repository."
+  },
+  "mcp_registry": {
+    "published": false,
+    "matches": 0,
+    "source": "MCP Registry",
+    "status": "ok"
+  }
+}
