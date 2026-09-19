@@ -19,7 +19,9 @@ The bridge assumes the local macOS user and the bridge process are trusted. It d
 
 ## Filesystem confinement
 
-Parent traversal is rejected. Existing paths are resolved through the filesystem, and a create checks the real path of the deepest existing ancestor so an existing symlink cannot redirect it outside the workspace. Writes stage a temporary file in the destination directory and atomically replace.
+Parent traversal and control characters are rejected. Existing paths are resolved through the filesystem, and a create checks the real path of the deepest existing or symlink ancestor so an existing or broken symlink cannot redirect it outside the workspace.
+
+Single-file whole-content writes stage a temporary file in the destination directory and atomically replace one directory entry. `file_write_batch` validates and stages every bounded mutation before committing any target and attempts rollback on process-level commit failure, but the filesystem does not provide a globally atomic transaction spanning several paths. See [files.md](files.md).
 
 A malicious same-user process can still race local filesystem state after a policy check. That is outside the present same-user threat model.
 

@@ -249,7 +249,10 @@ def resolve_in_workspace(w: dict, rel: str, must_exist: bool = True, allow_root:
         real.relative_to(root)
     except ValueError:
         raise BridgeError("permission_denied", f"path resolves outside workspace via symlink: {rel} -> {real}")
-    if not allow_root and real == root:
+    # allow_root concerns the requested target, not the deepest existing ancestor.
+    # A proposed root-level child has probe==root and must remain creatable.
+    target_real = cand.resolve(strict=False)
+    if not allow_root and target_real == root:
         raise BridgeError("invalid_argument", "operation not allowed on workspace root")
     return cand
 
