@@ -20,7 +20,7 @@ def gh(endpoint: str):
 
 
 def http_json(url: str):
-    req = urllib.request.Request(url, headers={"User-Agent": "cait-local-bridge-oss-health/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "scoperail-oss-health/0.1"})
     with urllib.request.urlopen(req, timeout=15) as r:
         return json.load(r)
 
@@ -134,9 +134,9 @@ def collect(repo: str, package: str, registry_name: str, criticality_command: st
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--repo", default="HanpuLi/cait-local-bridge")
-    ap.add_argument("--package", default="cait-local-bridge")
-    ap.add_argument("--registry-name", default="io.github.hanpuli/cait-local-bridge")
+    ap.add_argument("--repo", default="HanpuLi/scoperail")
+    ap.add_argument("--package", default="scoperail")
+    ap.add_argument("--registry-name", default="io.github.hanpuli/scoperail")
     ap.add_argument("--criticality-command", help="path to the official OpenSSF criticality_score executable")
     ap.add_argument("--output", type=Path, default=Path("metrics/oss-health.json"))
     ap.add_argument("--stdout", action="store_true")

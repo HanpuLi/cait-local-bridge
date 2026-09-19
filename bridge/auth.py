@@ -1,6 +1,6 @@
 """OAuth 2.1 authorization server (authorization code + PKCE S256, DCR, refresh, revocation) built on the
 official MCP SDK's auth routes. User authentication is a local single-operator login: the passphrase set with
-`bridgectl passphrase set` (scrypt-hashed under ~/.cait-local-bridge/secrets). Tokens are opaque and stored hashed.
+`scoperailctl passphrase set` (scrypt-hashed under ~/.scoperail/secrets). Tokens are opaque and stored hashed.
 No third party can obtain a token without that passphrase; Funnel reachability alone never authenticates anyone."""
 from __future__ import annotations
 import base64, hashlib, hmac, html, json, os, secrets, time, urllib.parse
@@ -79,7 +79,7 @@ class BridgeAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, Ref
     # --- authorization request: park it and send the user to the local login page ---
     async def authorize(self, client: OAuthClientInformationFull, params: AuthorizationParams) -> str:
         if not passphrase_configured():
-            raise AuthorizeError("server_error", "operator passphrase not configured; run `bridgectl passphrase set` on the Mac")
+            raise AuthorizeError("server_error", "operator passphrase not configured; run `scoperailctl passphrase set` on the Mac")
         _prune(self.cfg)
         if params.resource and params.resource.rstrip("/") != self.resource_url:
             raise AuthorizeError("invalid_target", f"resource must be {self.resource_url}")
@@ -162,10 +162,10 @@ class BridgeAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, Ref
 
 # ---------- login / consent pages (custom routes on the same app) ----------
 _PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cait Local Bridge</title><style>body{{font:16px -apple-system,system-ui,sans-serif;max-width:32em;margin:3em auto;padding:0 1em;color:#1a1a1a}}
+<title>ScopeRail</title><style>body{{font:16px -apple-system,system-ui,sans-serif;max-width:32em;margin:3em auto;padding:0 1em;color:#1a1a1a}}
 input{{font:inherit;width:100%;padding:.5em;margin:.4em 0 1em;box-sizing:border-box}}button{{font:inherit;padding:.5em 1.2em}}
 .box{{border:1px solid #ccc;padding:1em;border-radius:6px;margin:1em 0;background:#fafafa}}.err{{color:#8a2f1d}}small{{color:#666}}</style>
-<h1>Cait Local Bridge</h1>{body}"""
+<h1>ScopeRail</h1>{body}"""
 # The login/consent pages are the only HTML this server ever renders and they take the operator passphrase:
 # never framable (clickjacking of "Allow"), never cached, no referrer leakage, inline style only.
 _PAGE_HEADERS = {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
@@ -243,7 +243,7 @@ def make_login_routes(provider: BridgeAuthProvider):
             err = "<p class=err>Wrong passphrase.</p>"
         body = f"""{err}<div class=box><p><b>{html.escape(d.get('client_name') or d['client_id'])}</b> wants to connect. Enter the bridge passphrase you set on your Mac.</p>
 <form method=post><input type=hidden name=csrf value="{html.escape(d['csrf'])}"><label>Passphrase<input type=password name=passphrase autofocus autocomplete=current-password></label>
-<button>Sign in</button></form><p><small>Signing in issues a token only to this client. Revoke any time with <code>bridgectl tokens revoke-all</code>.</small></p></div>"""
+<button>Sign in</button></form><p><small>Signing in issues a token only to this client. Revoke any time with <code>scoperailctl tokens revoke-all</code>.</small></p></div>"""
         return _page(body)
 
     async def consent(request: Request) -> Response:

@@ -4,7 +4,7 @@ There is still no model API key, no Claude Code / Codex worker and no server-sid
 chatgpt.com conversation opened in the managed browser (the user's cloned, logged-in Comet profile), fed one composed
 message (an optional persona from ~/.claude/agents/<name>.md or ~/.claude/skills/<name>/SKILL.md, plus the task), and
 polled until the assistant's final turn. It runs on the user's ChatGPT plan, inside her account, with the same
-"Cait Local Bridge" plugin available to it — so the sub-agent can read files / run commands through the bridge exactly
+"ScopeRail" plugin available to it — so the sub-agent can read files / run commands through the bridge exactly
 like the parent session. Every step is plain browser automation of chatgpt.com; if OpenAI changes the UI the run fails
 with a stable error code and the tab is left open for inspection.
 """
@@ -19,7 +19,7 @@ from .policy import BridgeError, workspace_get, workspace_list, resolve_in_works
 
 CFG = load_config()
 CHATGPT_URL = CFG.get("chatgpt_url", "https://chatgpt.com/")
-APP_NAME = CFG.get("chatgpt_app_name", "Cait Local Bridge")   # plugin name as ChatGPT shows it in the "+" / "@" picker
+APP_NAME = CFG.get("chatgpt_app_name", "ScopeRail")   # plugin name as ChatGPT shows it in the "+" / "@" picker
 MAX_AGENTS = int(CFG.get("max_concurrent_agents", 3))
 DEFAULT_TIMEOUT = int(CFG.get("default_agent_timeout", 1800))
 EFFORTS = ["instant", "medium", "high", "extra_high", "pro"]       # chatgpt.com "Power" slider, positions 0..4 (2026-09)
@@ -391,7 +391,7 @@ async def _ready_composer(page) -> None:
         except Exception:
             pass
         if "/auth/" in page.url or "Log in" in body and "Sign up" in body:
-            raise BridgeError("needs_user_action", "chatgpt.com is not logged in inside the bridge browser; log in to ChatGPT in Comet, then run `bridgectl browser use-comet`")
+            raise BridgeError("needs_user_action", "chatgpt.com is not logged in inside the bridge browser; log in to ChatGPT in Comet, then run `scoperailctl browser use-comet`")
         if re.search(r"unusual activity|blocked|access denied|verify you are human|captcha", body, re.I) and "Just a moment" not in title:
             raise BridgeError("upstream_blocked", f"chatgpt.com refused the bridge browser: {body[:200]!r}")
         await asyncio.sleep(1)
@@ -401,7 +401,7 @@ async def _ready_composer(page) -> None:
 async def _session(page) -> dict:
     s = await page.evaluate("fetch('/api/auth/session').then(r=>r.json()).catch(e=>({error:String(e)}))")
     if not isinstance(s, dict) or not s.get("accessToken"):
-        raise BridgeError("needs_user_action", "no ChatGPT session token in the bridge browser; log in to ChatGPT in Comet, then `bridgectl browser use-comet`")
+        raise BridgeError("needs_user_action", "no ChatGPT session token in the bridge browser; log in to ChatGPT in Comet, then `scoperailctl browser use-comet`")
     return s
 
 
@@ -770,7 +770,7 @@ async def _run(run_id: str, message: str, followup: bool) -> None:
             conv = await _conversation(page, conv_id)
             if conv.get("status") != 200:
                 if conv.get("status") in (401, 403):
-                    raise BridgeError("needs_user_action", f"ChatGPT session rejected (HTTP {conv['status']}); re-login in Comet and `bridgectl browser use-comet`")
+                    raise BridgeError("needs_user_action", f"ChatGPT session rejected (HTTP {conv['status']}); re-login in Comet and `scoperailctl browser use-comet`")
                 if conv.get("status") == 429:
                     try:
                         wait = float(conv.get("retry_after") or 0) or backoff

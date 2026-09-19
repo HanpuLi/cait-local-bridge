@@ -1,9 +1,12 @@
-"""Paths and static configuration. Control plane lives under ~/.cait-local-bridge (never inside a workspace)."""
+"""Paths and static configuration. Control plane lives under ~/.scoperail (never inside a workspace)."""
 from __future__ import annotations
 import json, os, socket, secrets
 from pathlib import Path
 
-STATE_DIR = Path(os.environ.get("CLB_STATE_DIR", Path.home() / ".cait-local-bridge"))
+_NEW_STATE = Path.home() / ".scoperail"
+_LEGACY_STATE = Path.home() / ".cait-local-bridge"
+_DEFAULT_STATE = _LEGACY_STATE if _LEGACY_STATE.exists() and not _NEW_STATE.exists() else _NEW_STATE
+STATE_DIR = Path(os.environ.get("SCOPERAIL_STATE_DIR") or os.environ.get("CLB_STATE_DIR") or _DEFAULT_STATE)
 INSTALL_DIR = Path(__file__).resolve().parent.parent
 SECRETS_DIR = STATE_DIR / "secrets"
 JOBS_DIR = STATE_DIR / "jobs"
@@ -15,7 +18,7 @@ DB_PATH = STATE_DIR / "bridge.sqlite3"
 CONFIG_PATH = STATE_DIR / "config.json"
 # Optional activity signal: every authenticated tool call advances this epoch-seconds file.
 # External local workflows may watch it; tests can isolate it with CLB_LAST_INTERACTION.
-LAST_INTERACTION = Path(os.environ.get("CLB_LAST_INTERACTION", str(Path.home() / ".last_interaction")))
+LAST_INTERACTION = Path(os.environ.get("SCOPERAIL_LAST_INTERACTION") or os.environ.get("CLB_LAST_INTERACTION") or str(Path.home() / ".last_interaction"))
 
 DEFAULTS = {
     # New installs start loopback-only.  A remote MCP deployment must explicitly
@@ -47,7 +50,7 @@ DEFAULTS = {
     "login_lockout_seconds": 900,
     "login_global_max_attempts": 20,      # failures from ALL IPs within the lockout window -> everyone locked
     "refresh_reuse_grace_seconds": 30,    # replay of a rotated refresh token after this -> whole family revoked
-    "user_subject": os.environ.get("CLB_USER_SUBJECT", os.environ.get("USER", "operator")),
+    "user_subject": os.environ.get("SCOPERAIL_USER_SUBJECT", os.environ.get("CLB_USER_SUBJECT", os.environ.get("USER", "operator"))),
     # Managed-browser engine. Default: headless Chrome/Chromium with an empty profile.
     # Operators may explicitly point this at a compatible browser executable/profile clone.
     "browser_executable": None,
@@ -61,7 +64,7 @@ DEFAULTS = {
 # which is denied except for the workspace itself and the per-job HOME).
 SENSITIVE_HOME_SUBPATHS = [
     ".ssh", ".gnupg", ".aws", ".config/gh", ".git-credentials", ".netrc", ".npmrc", ".pypirc",
-    ".cait-local-bridge", ".claude", ".claude.json", ".codex", ".gmail-mcp", ".mimi",
+    ".scoperail", ".cait-local-bridge", ".claude", ".claude.json", ".codex", ".gmail-mcp", ".mimi",
     "Library/Keychains", "Library/Cookies", "Library/Application Support/Google",
     "Library/Application Support/Firefox", "Library/Application Support/com.apple.sharedfilelist",
     "Library/Mail", "Library/Messages", "Library/Group Containers",
@@ -69,7 +72,7 @@ SENSITIVE_HOME_SUBPATHS = [
 
 # Environment variables that are never passed to any job, in any profile.
 BLOCKED_ENV_PREFIXES = ("ANTHROPIC_", "OPENAI_", "CLAUDE", "CODEX", "GH_TOKEN", "GITHUB_TOKEN", "AWS_", "GOOGLE_API",
-                        "PAPERLESS", "FORGEJO", "CLB_", "SSH_AUTH_SOCK", "GPG_AGENT_INFO", "NPM_TOKEN", "HOMEBREW_GITHUB_API_TOKEN")
+                        "PAPERLESS", "FORGEJO", "SCOPERAIL_", "CLB_", "SSH_AUTH_SOCK", "GPG_AGENT_INFO", "NPM_TOKEN", "HOMEBREW_GITHUB_API_TOKEN")
 
 # PATH used for jobs and for the bridge's own subprocesses: a shim directory rebuilt at startup that links every
 # executable from the user's toolchain dirs EXCEPT Claude Code / Codex, followed by the system dirs.

@@ -85,7 +85,7 @@ def write_cmd(workspace_id: str, subcommand: str, args: list[str] | None = None,
 
 
 def push(workspace_id: str, remote: str, branch: str, cwd: str = ".", set_upstream: bool = False, subject: str | None = None) -> dict:
-    """Publish broker. Requires an active grant: bridgectl grant add <ws> git_push remote=<name> branch=<branch>.
+    """Publish broker. Requires an active grant: scoperailctl grant add <ws> git_push remote=<name> branch=<branch>.
     The push runs with repository config ignored for credential/transport keys, hooks disabled, and credentials
     coming only from the user's own credential helpers (never from the project)."""
     ws = workspace_get(workspace_id)

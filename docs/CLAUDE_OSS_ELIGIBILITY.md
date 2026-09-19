@@ -33,9 +33,9 @@ Machine-verifiable facts for this maintainer as of 2026-09-19:
 
 Age, residence/sanctions and employment/household conditions are personal attestations and are not inferred by this repository.
 
-## Cait Local Bridge current state
+## ScopeRail current state
 
-Cait Local Bridge became a public Apache-2.0 repository on 2026-09-19 and published GitHub Release `v0.1.0` the same day. The baseline below is evidence-driven: an unavailable metric is not silently converted to zero.
+The project became public under its former name on 2026-09-19 and published GitHub Release `v0.1.0` the same day. ScopeRail is the renamed public identity beginning with `v0.2.0`. The baseline below is evidence-driven: an unavailable metric is not silently converted to zero.
 
 | Criterion | Current evidence | Threshold | Gap / status | Verification |
 | --- | ---: | ---: | --- | --- |
@@ -43,7 +43,7 @@ Cait Local Bridge became a public Apache-2.0 repository on 2026-09-19 and publis
 | Dependent repositories | unavailable | 500 aggregate across maintained projects | no qualifying evidence collected yet | `metrics/oss-health.json`; use a reliable dependency source when available |
 | Dependent packages | unavailable | 100 aggregate across maintained projects | no qualifying evidence collected yet | `metrics/oss-health.json`; do not infer a count |
 | Monthly package downloads | unavailable; PyPI package not yet published | 200,000 aggregate monthly | package publication and real adoption required | PyPI/PyPI Stats after publication |
-| OpenSSF criticality | 0.12232 measured with OpenSSF `criticality_score` v2.0.4 using GitHub signals only (`deps.dev` disabled) | >= 0.4 for a maintained repository | measured shortfall 0.27768; the full deps.dev-enriched default score is still unavailable because Google Cloud ADC is not configured | `metrics/oss-health.json`; official OpenSSF CLI |
+| OpenSSF criticality | 0.12244 measured with OpenSSF `criticality_score` v2.0.4 using GitHub signals only (`deps.dev` disabled) | >= 0.4 for a maintained repository | measured shortfall 0.27756; the full deps.dev-enriched default score is still unavailable because Google Cloud ADC is not configured | `metrics/oss-health.json`; official OpenSSF CLI |
 | General observable eligibility | GitHub account-age, recent public activity and OSI-license evidence present | all general requirements | personal attestations still apply | GitHub metadata plus applicant attestation |
 
 The public repository also has live CI/security workflows, branch protection, private vulnerability reporting and a small set of independently useful contributor issues. Stars, forks and issue counts may be tracked as project-health context, but they are not substituted for Anthropic's qualifying metrics.

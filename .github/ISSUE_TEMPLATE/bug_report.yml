@@ -22,7 +22,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Cait Local Bridge version
+      label: ScopeRail version
       placeholder: 0.1.0
   - type: input
     id: macos

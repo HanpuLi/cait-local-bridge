@@ -1,4 +1,4 @@
-"""Loopback-only admin channel (127.0.0.1:<admin_port>, bearer = ~/.cait-local-bridge/secrets/admin.token, mode 0600).
+"""Loopback-only admin channel (127.0.0.1:<admin_port>, bearer = ~/.scoperail/secrets/admin.token, mode 0600).
 It is never proxied by Funnel and is blocked from the managed browser. Everything here is a user decision made on the Mac:
 workspaces, grants, token revocation, job control, kill switch. Remote (OAuth) identities cannot reach it."""
 from __future__ import annotations

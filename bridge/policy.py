@@ -52,7 +52,7 @@ def workspace_get(wid: str, check: bool = True) -> dict:
         if w["revoked"]:
             raise BridgeError("permission_denied", f"workspace {wid} is revoked")
         if w["expires_at"] and w["expires_at"] < time.time():
-            raise BridgeError("permission_denied", f"workspace {wid} grant expired; renew with bridgectl")
+            raise BridgeError("permission_denied", f"workspace {wid} grant expired; renew with scoperailctl")
         if not Path(w["root"]).is_dir():
             raise BridgeError("offline", f"workspace root missing: {w['root']}")
     return w
@@ -80,7 +80,7 @@ def require_profile(w: dict, profile: str) -> None:
     if profile not in w["profiles"]:
         raise BridgeError("permission_denied",
                           f"profile '{profile}' is not granted for workspace {w['id']}; granted: {w['profiles']}. "
-                          f"The user can grant it locally with: bridgectl workspace profiles {w['id']} --add {profile}")
+                          f"The user can grant it locally with: scoperailctl workspace profiles {w['id']} --add {profile}")
 
 
 # ---------- grants (publish / trusted operations) ----------
@@ -123,7 +123,7 @@ def grant_find(workspace_id: str, kind: str, match: dict) -> dict:
             return g
     raise BridgeError("needs_user_action",
                       f"no active '{kind}' grant for workspace {workspace_id} matching {match}. "
-                      f"The user must approve it locally: bridgectl grant add {workspace_id} {kind} " +
+                      f"The user must approve it locally: scoperailctl grant add {workspace_id} {kind} " +
                       " ".join(f"{k}={v}" for k, v in match.items()))
 
 

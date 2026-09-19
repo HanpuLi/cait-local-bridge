@@ -1,6 +1,6 @@
 # Architecture
 
-Cait Local Bridge is a control plane around local execution surfaces. The connected MCP client supplies intent; the bridge resolves that intent into bounded operations and records what actually ran.
+ScopeRail is a scoped control plane around local execution surfaces. The connected MCP client supplies intent; the bridge resolves that intent into bounded operations and records what actually ran.
 
 ## Layers
 

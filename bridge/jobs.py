@@ -76,6 +76,7 @@ def seatbelt_profile(ws_root: str, ws_home: str, network: str, workspace_id: str
 
 def _clean_env(user_env: dict[str, str] | None, profile: str, ws: dict, job_id: str, pty_mode: bool) -> dict[str, str]:
     env = {"PATH": SANDBOX_PATH if profile == "sandboxed" else JOB_PATH, "LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8", "TERM": "xterm-256color" if pty_mode else "dumb",
+           "SCOPERAIL_JOB_ID": job_id, "SCOPERAIL_WORKSPACE": ws["id"], "SCOPERAIL_PROFILE": profile,
            "CLB_JOB_ID": job_id, "CLB_WORKSPACE": ws["id"], "CLB_PROFILE": profile, "CI": "1" if not pty_mode else "",
            "NO_COLOR": "1" if not pty_mode else "", "GIT_TERMINAL_PROMPT": "0", "PIP_DISABLE_PIP_VERSION_CHECK": "1"}
     if profile == "sandboxed":

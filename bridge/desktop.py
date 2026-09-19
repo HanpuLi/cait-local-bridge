@@ -37,7 +37,7 @@ def permissions() -> dict:
     return {"screen_recording": bool(Quartz.CGPreflightScreenCaptureAccess()), "accessibility": bool(AXIsProcessTrusted()),
             "bridge_executable": exe,
             "how_to_grant": "System Settings > Privacy & Security > Screen Recording AND Accessibility: add the bridge python "
-                            f"({exe}; the Python.app bundle two levels up also works), then `bridgectl start`"}
+                            f"({exe}; the Python.app bundle two levels up also works), then `scoperailctl start`"}
 
 
 def request_permissions() -> dict:

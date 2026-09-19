@@ -79,6 +79,6 @@ jobs:
           python -m venv /tmp/clb-wheel-test
           /tmp/clb-wheel-test/bin/python -m pip install dist/*.whl
           /tmp/clb-wheel-test/bin/python -m pip check
-          /tmp/clb-wheel-test/bin/cait-local-bridge --version
-          /tmp/clb-wheel-test/bin/python -c "import bridge; assert bridge.__version__ == '0.1.0'"
-          /tmp/clb-wheel-test/bin/python scripts/smoke_stdio.py --command /tmp/clb-wheel-test/bin/cait-local-bridge-stdio
+          /tmp/clb-wheel-test/bin/scoperail --version
+          /tmp/clb-wheel-test/bin/python -c "import bridge; assert bridge.__version__ == '0.2.0'"
+          /tmp/clb-wheel-test/bin/python scripts/smoke_stdio.py --command /tmp/clb-wheel-test/bin/scoperail-stdio

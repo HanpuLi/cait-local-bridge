@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke-test an installed Cait Local Bridge wheel over MCP stdio."""
+"""Smoke-test an installed ScopeRail wheel over MCP stdio."""
 from __future__ import annotations
 
 import argparse
@@ -23,7 +23,7 @@ async def probe(command: str) -> dict:
             "HOME": os.environ.get("HOME", str(Path.home())),
             "LANG": os.environ.get("LANG", "en_US.UTF-8"),
             "CLB_STATE_DIR": state,
-            "CLB_WORKSPACE_ROOT": workspace,
+            "SCOPERAIL_WORKSPACE_ROOT": workspace,
             "CLB_USER_SUBJECT": "smoke-operator",
         }
         params = StdioServerParameters(command=command, env=env)
@@ -44,12 +44,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--command",
-        default=shutil.which("cait-local-bridge-stdio"),
-        help="installed cait-local-bridge-stdio executable",
+        default=shutil.which("scoperail-stdio"),
+        help="installed scoperail-stdio executable",
     )
     args = parser.parse_args()
     if not args.command:
-        raise SystemExit("cait-local-bridge-stdio is not on PATH; pass --command")
+        raise SystemExit("scoperail-stdio is not on PATH; pass --command")
     print(json.dumps(asyncio.run(probe(args.command)), sort_keys=True))
 
 

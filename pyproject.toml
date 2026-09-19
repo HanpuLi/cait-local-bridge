@@ -3,9 +3,9 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cait-local-bridge"
+name = "scoperail"
 dynamic = ["version"]
-description = "Local-first MCP execution bridge with explicit workspace capabilities, persistent shells, browser control and semantic macOS UI automation."
+description = "Scoped local execution for MCP clients, with explicit workspace capabilities, persistent shells, browser control and semantic macOS UI automation."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -42,14 +42,14 @@ dev = [
 ]
 
 [project.scripts]
-cait-local-bridge = "bridge.public_cli:main"
-cait-local-bridge-stdio = "bridge.stdio:main"
+scoperail = "bridge.public_cli:main"
+scoperail-stdio = "bridge.stdio:main"
 
 [project.urls]
-Homepage = "https://github.com/HanpuLi/cait-local-bridge"
-Repository = "https://github.com/HanpuLi/cait-local-bridge"
-Issues = "https://github.com/HanpuLi/cait-local-bridge/issues"
-Security = "https://github.com/HanpuLi/cait-local-bridge/security/policy"
+Homepage = "https://github.com/HanpuLi/scoperail"
+Repository = "https://github.com/HanpuLi/scoperail"
+Issues = "https://github.com/HanpuLi/scoperail/issues"
+Security = "https://github.com/HanpuLi/scoperail/security/policy"
 
 [tool.setuptools.dynamic]
 version = { attr = "bridge.__version__" }

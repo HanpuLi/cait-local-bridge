@@ -1,6 +1,6 @@
 # Contributing
 
-Cait Local Bridge is security-sensitive local execution software. Contributions are welcome when they make a real capability safer, more portable, easier to operate, or easier to understand.
+ScopeRail is security-sensitive local execution software. Contributions are welcome when they make a real capability safer, more portable, easier to operate, or easier to understand.
 
 ## Before coding
 

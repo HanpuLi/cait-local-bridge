@@ -1,5 +1,5 @@
 """Entry point: `python -m bridge` runs the public MCP app (loopback, proxied by Funnel) and the loopback admin app
-in one asyncio loop, plus the plain-process scheduler thread. Managed by launchd (com.cait.local-bridge)."""
+in one asyncio loop, plus the plain-process scheduler thread. Managed by launchd (io.github.hanpuli.scoperail; the old label is accepted during upgrades)."""
 from __future__ import annotations
 import asyncio, logging, os, signal, subprocess, sys, threading, time
 import uvicorn
@@ -79,7 +79,7 @@ def main() -> None:
             target=_activity_sidecar_supervisor,
             args=(stop, str(cfg["activity_sidecar"])),
             daemon=True,
-            name="cait-local-bridge-sidecar",
+            name="scoperail-sidecar",
         )
         sidecar_thread.start()
     public = uvicorn.Server(uvicorn.Config(build_app(), host=cfg["listen_host"], port=cfg["listen_port"], log_level="info", proxy_headers=True, access_log=False,

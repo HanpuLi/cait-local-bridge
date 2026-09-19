@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Cait Local Bridge is an original implementation that incorporates design lessons from several open-source projects. No upstream repository is vendored wholesale in the public export.
+ScopeRail is an original implementation that incorporates design lessons from several open-source projects. No upstream repository is vendored wholesale in the public export.
 
 ## DarwinRelay
 
@@ -30,13 +30,13 @@ Shellby's named persistent-shell UX informed the persistent shell abstraction. T
 Project: `microsoft/playwright-mcp`
 License: Apache-2.0
 
-Playwright MCP informed the preference for Accessibility-oriented browser state and attaching to an already-running browser/profile when appropriate. Cait Local Bridge uses Playwright directly and provides its own loopback-CDP attachment semantics.
+Playwright MCP informed the preference for Accessibility-oriented browser state and attaching to an already-running browser/profile when appropriate. ScopeRail uses Playwright directly and provides its own loopback-CDP attachment semantics.
 
 ## Computer Use MCP
 
 Project: `onixhdz/computer-use-mcp`
 License: MIT
 
-Computer Use MCP informed the idea of returning a bounded, high-signal before/after Accessibility-state diff after desktop mutations. Cait Local Bridge independently implements this over its own PyObjC AX tree, fingerprint refs, grants and observation model; no upstream source file is vendored.
+Computer Use MCP informed the idea of returning a bounded, high-signal before/after Accessibility-state diff after desktop mutations. ScopeRail independently implements this over its own PyObjC AX tree, fingerprint refs, grants and observation model; no upstream source file is vendored.
 
 See the upstream repositories for their complete license texts and notices.

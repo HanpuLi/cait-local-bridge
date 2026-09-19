@@ -36,7 +36,7 @@ def _grant(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="cait-local-bridge",
+        prog="scoperail",
         description="Local-first MCP execution bridge for files, processes, browsers and native macOS UI.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")

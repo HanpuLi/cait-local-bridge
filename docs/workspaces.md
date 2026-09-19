@@ -6,9 +6,9 @@ A workspace is the bridge's unit of local authority. It has an opaque ID, canoni
 
 For the packaged CLI:
 
-    cait-local-bridge init /absolute/path/to/project
+    scoperail init /absolute/path/to/project
 
-For stdio clients that cannot perform a prior setup step, set CLB_WORKSPACE_ROOT. The stdio entry point registers that path as sandboxed with network off. It does not automatically add trusted-host or desktop access.
+For stdio clients that cannot perform a prior setup step, set SCOPERAIL_WORKSPACE_ROOT. The stdio entry point registers that path as sandboxed with network off. It does not automatically add trusted-host or desktop access.
 
 The bridge rejects unsafe roots such as the user's entire home directory, filesystem root, its own control-plane state and other configured sensitive roots.
 

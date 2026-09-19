@@ -6,7 +6,7 @@ Use GitHub private vulnerability reporting for this repository when available. D
 
 ## Trust boundaries
 
-Cait Local Bridge is a remote-control surface for a real Mac. Treat its MCP endpoint as security-sensitive infrastructure.
+ScopeRail is a remote-control surface for a real Mac. Treat its MCP endpoint as security-sensitive infrastructure.
 
 The main boundaries are:
 
@@ -18,7 +18,7 @@ The main boundaries are:
 
 ## Local stdio and remote OAuth
 
-The packaged stdio entry point is intended for a local MCP client running under the same logged-in operator account. It does not use the remote OAuth request context. This trust shortcut is enabled only inside that stdio process and is not enabled by the HTTP service. An optional `CLB_WORKSPACE_ROOT` bootstrap registers only a sandboxed, network-off workspace; it does not silently grant trusted-host or desktop authority.
+The packaged stdio entry point is intended for a local MCP client running under the same logged-in operator account. It does not use the remote OAuth request context. This trust shortcut is enabled only inside that stdio process and is not enabled by the HTTP service. An optional `SCOPERAIL_WORKSPACE_ROOT` bootstrap registers only a sandboxed, network-off workspace; it does not silently grant trusted-host or desktop authority.
 
 The remote service uses authorization code + PKCE S256 with dynamic client registration for supported MCP clients. Access tokens are short-lived; refresh tokens rotate; token material is stored hashed where applicable; revocation is supported.
 

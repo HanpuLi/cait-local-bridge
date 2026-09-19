@@ -10,13 +10,13 @@ from pathlib import Path
 
 
 def _bootstrap_workspace() -> None:
-    root = os.environ.get("CLB_WORKSPACE_ROOT")
+    root = os.environ.get("SCOPERAIL_WORKSPACE_ROOT") or os.environ.get("CLB_WORKSPACE_ROOT")
     if not root:
         return
     from . import policy
 
     path = Path(root).expanduser().resolve()
-    name = os.environ.get("CLB_WORKSPACE_NAME") or path.name or "workspace"
+    name = os.environ.get("SCOPERAIL_WORKSPACE_NAME") or os.environ.get("CLB_WORKSPACE_NAME") or path.name or "workspace"
     # The registry bootstrap is intentionally least-privilege: sandboxed, network off.
     # trusted-host and desktop capabilities require an explicit local CLI action.
     policy.workspace_add(str(path), name, ["sandboxed"], network="off", days=None, notes="stdio bootstrap")

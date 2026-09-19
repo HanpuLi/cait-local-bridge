@@ -37,7 +37,7 @@ async def _ensure() -> None:
     last = None
     exe = CFG.get("browser_executable")
     headless = bool(CFG.get("browser_headless", True))
-    # A configured executable (Comet with the user's cloned profile, set by `bridgectl browser use-comet`) is tried
+    # A configured executable (Comet with the user's cloned profile, set by `scoperailctl browser use-comet`) is tried
     # first, then Google Chrome, then Playwright's bundled Chromium.
     engines = ([("custom", exe)] if exe else []) + [("chrome", None), (None, None)]
     for channel, path in engines:

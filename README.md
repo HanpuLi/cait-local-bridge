@@ -1,8 +1,8 @@
-# Cait Local Bridge
+# ScopeRail
 
-<!-- mcp-name: io.github.hanpuli/cait-local-bridge -->
+<!-- mcp-name: io.github.hanpuli/scoperail -->
 
-Cait Local Bridge is a local-first MCP execution bridge for AI clients that need to work on a real Mac without receiving unrestricted host access by default. Files, processes, browser sessions and native desktop UI are exposed through one workspace capability model with explicit grants and auditable actions.
+ScopeRail is a scoped local execution runtime for MCP clients that need to work on a real Mac without receiving unrestricted host access by default. Files, processes, browser sessions and native desktop UI are exposed through one workspace capability model with explicit grants and auditable actions.
 
 It is not just a shell MCP. Shell access is one surface inside a broader permission model: a caller starts from a registered workspace, receives only the profiles and grants the operator enabled, and uses retry-safe primitives that return provenance and observable results.
 
@@ -12,17 +12,17 @@ Python 3.12+ and `pipx` on macOS:
 
 ```sh
 brew install pipx  # skip if pipx is already installed
-pipx install "https://github.com/HanpuLi/cait-local-bridge/releases/download/v0.1.0/cait_local_bridge-0.1.0-py3-none-any.whl"
-CLB_WORKSPACE_ROOT="$PWD" cait-local-bridge stdio
+pipx install "https://github.com/HanpuLi/scoperail/releases/download/v0.2.0/scoperail-0.2.0-py3-none-any.whl"
+SCOPERAIL_WORKSPACE_ROOT="$PWD" scoperail stdio
 ```
 
-The tagged GitHub wheel is the current working install path and is tested with `pipx`. PyPI Trusted Publishing is prepared but the first PyPI upload still requires the maintainer's one-time PyPI login; after that, `pipx install cait-local-bridge` is equivalent.
+The tagged GitHub wheel is the current working install path and is tested with `pipx`. PyPI Trusted Publishing is prepared but the first PyPI upload still requires the maintainer's one-time PyPI login; after that, `pipx install scoperail` is equivalent.
 
 Or register once, then start stdio:
 
 ```sh
-cait-local-bridge init "$PWD"
-cait-local-bridge stdio
+scoperail init "$PWD"
+scoperail stdio
 ```
 
 For the full OAuth HTTP service, launchd installation and optional reverse-proxy/Tailscale deployment, see [docs/install.md](docs/install.md).
@@ -41,7 +41,7 @@ For the full OAuth HTTP service, launchd installation and optional reverse-proxy
 | Git publish | Read operations are separate from parameter-bound publish grants |
 | Audit/state | Request IDs, provenance, audit records, persistent workspace state |
 
-The bridge does not embed a model. The connected client decides what to do; the bridge enforces and records the execution boundary.
+ScopeRail does not embed a model. The connected client decides what to do; ScopeRail enforces and records the execution boundary.
 
 ```text
 MCP client
@@ -61,7 +61,7 @@ MCP client
 
 ## Platform and client status
 
-Cait Local Bridge is **macOS-first**. Native Accessibility control and the Seatbelt sandbox are macOS features. Pure policy/file/package tests may run on Linux CI, but Linux and Windows are not currently advertised as complete runtime platforms.
+ScopeRail is **macOS-first**. Native Accessibility control and the Seatbelt sandbox are macOS features. Pure policy/file/package tests may run on Linux CI, but Linux and Windows are not currently advertised as complete runtime platforms.
 
 - **Generic MCP clients:** local stdio transport is supported.
 - **ChatGPT:** remote OAuth/streamable-HTTP is the primary deployed integration and is exercised by the project.
@@ -75,7 +75,7 @@ Screenshot, mouse and keyboard primitives remain available for apps with incompl
 
 ## Browser sessions
 
-The managed browser uses a bridge-owned profile. A trusted-host workspace may also attach to an already-running Chromium-family browser only through an operator-configured loopback DevTools endpoint. Existing tabs are treated as external resources: detaching the bridge does not close them.
+The managed browser uses a ScopeRail-owned profile. A trusted-host workspace may also attach to an already-running Chromium-family browser only through an operator-configured loopback DevTools endpoint. Existing tabs are treated as external resources: detaching the bridge does not close them.
 
 ## Remote service
 

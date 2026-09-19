@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.hanpuli/cait-local-bridge",
-  "title": "Cait Local Bridge",
-  "description": "Local-first MCP bridge for scoped files, shells, browsers and semantic macOS UI control.",
+  "name": "io.github.hanpuli/scoperail",
+  "title": "ScopeRail",
+  "description": "Scoped local execution for files, shells, browsers and semantic macOS UI control.",
   "repository": {
-    "url": "https://github.com/HanpuLi/cait-local-bridge",
+    "url": "https://github.com/HanpuLi/scoperail",
     "source": "github"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "pypi",
-      "identifier": "cait-local-bridge",
-      "version": "0.1.0",
+      "identifier": "scoperail",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       },
@@ -20,12 +20,12 @@
       "packageArguments": [
         {
           "type": "positional",
-          "value": "cait-local-bridge-stdio"
+          "value": "scoperail-stdio"
         }
       ],
       "environmentVariables": [
         {
-          "name": "CLB_WORKSPACE_ROOT",
+          "name": "SCOPERAIL_WORKSPACE_ROOT",
           "description": "Absolute path to the local directory this stdio server may expose as a sandboxed workspace.",
           "isRequired": true,
           "isSecret": false,

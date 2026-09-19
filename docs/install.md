@@ -5,21 +5,21 @@
 Requirements: macOS, Python 3.12+ and pipx.
 
     brew install pipx  # skip if pipx is already installed
-    pipx install "https://github.com/HanpuLi/cait-local-bridge/releases/download/v0.1.0/cait_local_bridge-0.1.0-py3-none-any.whl"
-    cait-local-bridge --version
-    cait-local-bridge init "$PWD"
-    cait-local-bridge stdio
+    pipx install "https://github.com/HanpuLi/scoperail/releases/download/v0.2.0/scoperail-0.2.0-py3-none-any.whl"
+    scoperail --version
+    scoperail init "$PWD"
+    scoperail stdio
 
-The tagged GitHub wheel is the current install source until the first PyPI Trusted Publishing upload is completed. After PyPI publication, `pipx install cait-local-bridge` installs the same application.
+The tagged GitHub wheel is the current install source until the first PyPI Trusted Publishing upload is completed. After PyPI publication, `pipx install scoperail` installs the same application.
 
-For an MCP client that launches the package itself, configure CLB_WORKSPACE_ROOT and invoke cait-local-bridge-stdio. MCP Registry metadata uses the same stdio entry point once published.
+For an MCP client that launches the package itself, configure SCOPERAIL_WORKSPACE_ROOT and invoke scoperail-stdio. MCP Registry metadata uses the same stdio entry point once published.
 
 Playwright browser automation also needs a Chromium browser installation appropriate to the environment.
 
 ## Source / full OAuth service
 
-    git clone https://github.com/HanpuLi/cait-local-bridge.git
-    cd cait-local-bridge
+    git clone https://github.com/HanpuLi/scoperail.git
+    cd scoperail
     python3 -m venv .venv
     . .venv/bin/activate
     pip install -r requirements.txt
@@ -35,4 +35,4 @@ Screenshot/native control requires Screen Recording and Accessibility permission
 
 ## Upgrade
 
-Back up ~/.cait-local-bridge before major upgrades. Package upgrades do not intentionally overwrite operator config, workspace registrations, grants or credentials.
+Back up ~/.scoperail before major upgrades. Package upgrades do not intentionally overwrite operator config, workspace registrations, grants or credentials.

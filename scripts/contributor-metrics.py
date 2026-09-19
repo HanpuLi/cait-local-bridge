@@ -98,7 +98,7 @@ def collect(repo: str, owner: str | None = None, now: dt.datetime | None = None)
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--repo", default="HanpuLi/cait-local-bridge")
+    ap.add_argument("--repo", default="HanpuLi/scoperail")
     ap.add_argument("--owner")
     ap.add_argument("--output", type=Path, default=Path("metrics/contributors.json"))
     ap.add_argument("--stdout", action="store_true")

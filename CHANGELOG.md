@@ -2,9 +2,20 @@
 
 All notable public changes are recorded here. The project follows Semantic Versioning once a public release exists.
 
+## [0.2.0] - 2026-09-19
+
+Renamed the public project from Cait Local Bridge to **ScopeRail**.
+
+- New public repository, package, CLI and MCP Registry identity: `scoperail`.
+- New primary local control command: `scoperailctl`.
+- New public environment prefix: `SCOPERAIL_*`.
+- Existing `~/.cait-local-bridge`, `CLB_*`, `bridgectl` and the legacy launchd label remain upgrade-compatible where needed.
+- Linux CI now runs only platform-neutral tests; macOS-only Quartz/AppKit coverage remains on macOS runners.
+- Release recovery verifies and reuses exact published artifacts instead of rebuilding the same version from a later commit.
+
 ## [0.1.0] - 2026-09-19
 
-Initial public release candidate.
+Initial public release under the former project name.
 
 - Workspace-scoped filesystem operations with retry-safe writes and conflict detection.
 - Sandboxed and explicitly trusted-host process execution, PTY jobs and persistent shell sessions.

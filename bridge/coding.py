@@ -280,7 +280,7 @@ async def _run(tid: str, subject: str | None) -> None:
     try:
         if excl.parent.is_dir() and (not excl.exists() or f"/{TASK_DIR}/" not in excl.read_text()):
             with open(excl, "a") as f:
-                f.write(f"\n# Cait Local Bridge coding_task worktrees\n/{TASK_DIR}/\n")
+                f.write(f"\n# ScopeRail coding_task worktrees\n/{TASK_DIR}/\n")
     except OSError:
         pass
     head = _git(top, "rev-parse", "HEAD")
@@ -366,7 +366,7 @@ async def _run(tid: str, subject: str | None) -> None:
     if status_out.strip():
         _git(wt_abs, "add", "-A")
         msg = f"clb: {spec['task'].splitlines()[0][:70]}\n\ncoding_task {tid} · rounds={len(st['rounds'])} · tests={final}\n"
-        c = _git(wt_abs, "-c", "user.name=Cait Local Bridge", "-c", "user.email=bridge@local", "commit", "-q", "-m", msg)
+        c = _git(wt_abs, "-c", "user.name=ScopeRail", "-c", "user.email=bridge@local", "commit", "-q", "-m", msg)
         st["commit"] = {"ok": c.returncode == 0, "output": (c.stdout + c.stderr).strip()[-300:]}
     else:
         st["commit"] = {"ok": False, "output": "no changes in the worktree"}

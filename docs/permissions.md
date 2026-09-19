@@ -16,7 +16,7 @@ Grants authorize operations that should not be implied by workspace membership. 
 
 The packaged CLI can register a workspace and create an explicit grant:
 
-    cait-local-bridge init ~/src/project
-    cait-local-bridge grant <workspace-id> desktop screen=*
+    scoperail init ~/src/project
+    scoperail grant <workspace-id> desktop screen=*
 
 Treat trusted-host, desktop grants and publish grants as privilege escalation decisions. They are not defaults in package metadata or examples.

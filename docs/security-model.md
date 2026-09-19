@@ -1,6 +1,6 @@
 # Security model
 
-Cait Local Bridge can execute code and control a logged-in desktop. Its security model is capability reduction and auditability, not a claim that arbitrary local execution is harmless.
+ScopeRail can execute code and control a logged-in desktop. Its security model is capability reduction and auditability, not a claim that arbitrary local execution is harmless.
 
 ## Threat model
 

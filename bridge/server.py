@@ -39,13 +39,13 @@ INSTRUCTIONS = (
     "repository use coding_task (the bridge runs the loop deterministically on a branch and verifies with the real test command). "
     "Every result carries request_id, provenance.host_id and workspace_id: check them so you never mistake your own sandbox for the user's Mac. "
     "Errors come back as isError with a stable code (permission_denied, conflict, not_found, needs_user_action, rate_limited, offline, timeout, "
-    "missing_dependency, invalid_argument, upstream_blocked). needs_user_action means the user must run a bridgectl command locally; tell them exactly which. "
+    "missing_dependency, invalid_argument, upstream_blocked). needs_user_action means the user must run a scoperailctl command locally; tell them exactly which. "
     "Sub-agents (agent_start): a fresh conversation in the user's OWN chatgpt.com session, driven by the bridge browser, optionally wearing one of her "
     "~/.claude/agents or skills personas (agent_catalog); it can call this bridge itself. It spends her ChatGPT plan, not an API key; there is still no other model."
 )
 
 server = MCPServer(
-    name="Cait Local Bridge", version=__version__, instructions=INSTRUCTIONS,
+    name="ScopeRail", version=__version__, instructions=INSTRUCTIONS,
     auth_server_provider=provider,
     auth=AuthSettings(issuer_url=AnyHttpUrl(PUBLIC_URL + "/"), resource_server_url=AnyHttpUrl(PUBLIC_URL + MCP_PATH),
                       client_registration_options=ClientRegistrationOptions(enabled=True, valid_scopes=[SCOPE], default_scopes=[SCOPE]),
@@ -231,7 +231,7 @@ def bridge_info(_subject: str) -> CallToolResult:
             "gh": ver(["gh", "--version"]), "sandbox-exec": bool(shutil.which("sandbox-exec", path=JOB_PATH + ":/usr/bin")), "browser_engine": browser.engine()}
     active = [j for j in jobs.list_jobs(limit=200) if j["status"] in jobs.STATUS_ACTIVE]
     # external_model_workers: sub-agents are conversations in the user's OWN chatgpt.com session (agent_start) — no API key, no CC / Codex.
-    return _ok({"bridge": "Cait Local Bridge", "version": __version__, "mode": "direct_tools_for_current_chatgpt", "decision_maker": "active_chatgpt_session",
+    return _ok({"bridge": "ScopeRail", "version": __version__, "mode": "direct_tools_for_current_chatgpt", "decision_maker": "active_chatgpt_session",
                 "external_model_workers": "chatgpt_web_subagents", "host": {"host_id": CFG["host_id"], "platform": f"macOS {platform.mac_ver()[0]} {platform.machine()}",
                 "hostname": platform.node().split('.')[0], "online": True, "timezone_display": CFG["timezone"], "clock_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
                 "operator": _subject, "workspaces": [{k: w[k] for k in ("id", "name", "root", "profiles", "network", "expires_at", "active")} for w in policy.workspace_list()],
@@ -244,7 +244,7 @@ def bridge_info(_subject: str) -> CallToolResult:
                 "user_browsers": _configured_user_browsers(),
                 "dependencies": deps, "limits": {k: CFG[k] for k in ("max_concurrent_jobs", "default_job_timeout", "max_job_timeout", "max_read_bytes", "max_export_bytes", "max_import_bytes", "rate_limit_per_minute")},
                 "active_jobs": len(active), "homelab": homelab.status(), "tool_manifest": _manifest(),
-                "blockers": [] if policy.workspace_list() else ["no workspace registered: the user must run `bridgectl workspace add <dir> --name <n> --profiles sandboxed[,trusted-host]`"]})
+                "blockers": [] if policy.workspace_list() else ["no workspace registered: the user must run `scoperailctl workspace add <dir> --name <n> --profiles sandboxed[,trusted-host]`"]})
 
 
 @tool("workspace_list", RO)
@@ -917,7 +917,7 @@ def git_write(workspace_id: str, subcommand: str, args: list[str] | None = None,
 @tool("git_push", NET)
 @guarded
 def git_push(workspace_id: str, remote: str, branch: str, cwd: str = ".", set_upstream: bool = False, _subject: str = "") -> CallToolResult:
-    """Publish a branch through the broker. Needs an active user grant (bridgectl grant add <ws> git_push remote=<r> branch=<b>). Never force. Returns remote HEAD after push."""
+    """Publish a branch through the broker. Needs an active user grant (scoperailctl grant add <ws> git_push remote=<r> branch=<b>). Never force. Returns remote HEAD after push."""
     return _ok(gitops.push(workspace_id, remote, branch, cwd, set_upstream, _subject), workspace_id=workspace_id)
 
 
@@ -1129,7 +1129,7 @@ server.custom_route("/consent", methods=["POST"])(consent_route)
 
 @server.custom_route("/healthz", methods=["GET"])
 async def healthz(_: Request):
-    return JSONResponse({"ok": True, "service": "cait-local-bridge", "version": __version__})
+    return JSONResponse({"ok": True, "service": "scoperail", "version": __version__})
 
 
 # ---------- OAuth discovery aliases ----------
@@ -1173,7 +1173,7 @@ for _p in PRM_ALIAS_PATHS:
 
 @server.custom_route("/docs", methods=["GET"])
 async def docs(_: Request):
-    return PlainTextResponse(f"Cait Local Bridge MCP endpoint: {PUBLIC_URL}{MCP_PATH} (OAuth 2.1 required). Connect from ChatGPT developer mode. No public documentation is served here.")
+    return PlainTextResponse(f"ScopeRail MCP endpoint: {PUBLIC_URL}{MCP_PATH} (OAuth 2.1 required). Connect from ChatGPT developer mode. No public documentation is served here.")
 
 
 # ---------- scheduler (plain processes only) ----------

@@ -137,7 +137,7 @@ async def mcp_calls(base: str, token: str, public: str | None, ws_root: str, ext
                 # this test suite is portable and does not publish an operator's absolute path.
                 real_home = Path.home()
                 real_docs = shlex.quote(str(real_home / "Documents"))
-                control_token = shlex.quote(str(real_home / ".cait-local-bridge" / "secrets" / "admin.token"))
+                control_token = shlex.quote(str(real_home / ".scoperail" / "secrets" / "admin.token"))
                 escape_probe = shlex.quote(str(real_home / "Desktop" / "clb-escape-probe"))
                 probes = {"home_read": f"cat ~/.ssh/config 2>&1 | head -1; ls {real_docs} 2>&1 | head -1",
                           "control_plane": f"cat {control_token} 2>&1 | head -c 60",
@@ -154,7 +154,7 @@ async def mcp_calls(base: str, token: str, public: str | None, ws_root: str, ext
                     _, lg = await call("exec_logs", job_id=jid); _, le = await call("exec_logs", job_id=jid, stream="stderr")
                     ev.setdefault("sandbox_probes", {})[name] = {"exit": p["data"]["exit_code"], "stdout": lg["data"]["text"][-200:], "stderr": le["data"]["text"][-200:]}
                 # path escape via tool args
-                _, esc = await call("file_read", workspace_id=ws, path="../../.cait-local-bridge/config.json"); ev["path_escape"] = esc.get("error")
+                _, esc = await call("file_read", workspace_id=ws, path="../../.scoperail/config.json"); ev["path_escape"] = esc.get("error")
                 _, esc2 = await call("file_read", workspace_id=ws, path="/etc/passwd"); ev["abs_escape"] = esc2.get("error")
                 if extra and extra.get("browser_url"):
                     _, bo = await call("browser_open", workspace_id=ws, url=extra["browser_url"], width=390, height=844)

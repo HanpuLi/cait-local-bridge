@@ -111,8 +111,8 @@ jobs:
         run: |
           mkdir -p dist
           gh release download "$RELEASE_REF" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'cait_local_bridge-*.whl' \
-            --pattern 'cait_local_bridge-*.tar.gz' \
+            --pattern 'scoperail-*.whl' \
+            --pattern 'scoperail-*.tar.gz' \
             --dir dist
           gh release download "$RELEASE_REF" --repo "$GITHUB_REPOSITORY" \
             --pattern SHA256SUMS

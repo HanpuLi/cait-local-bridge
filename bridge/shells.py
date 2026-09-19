@@ -6,7 +6,7 @@ one execution substrate.  Sessions retain cwd, exported variables, shell functio
 and aliases until close/reset/restart.
 
 Design cues: Shellby's named persistent-shell UX and retry identity, while preserving
-Cait Local Bridge's sandbox/trusted-host boundary and retry-safe job primitives.
+ScopeRail's sandbox/trusted-host boundary and retry-safe job primitives.
 """
 from __future__ import annotations
 

@@ -256,7 +256,7 @@ def move(workspace_id: str, src: str, dst: str, overwrite: bool = False, copy: b
 
 
 def quarantine(workspace_id: str, path: str, subject: str | None = None) -> dict:
-    """Never rm -rf: moves the path into the bridge trash (~/.cait-local-bridge/trash/<ws>/<ts>-<name>), restorable by the user."""
+    """Never rm -rf: moves the path into the bridge trash (~/.scoperail/trash/<ws>/<ts>-<name>), restorable by the user."""
     ws = workspace_get(workspace_id); p = resolve_in_workspace(ws, path, allow_root=False)
     tdir = STATE_DIR / "trash" / workspace_id
     tdir.mkdir(parents=True, exist_ok=True)

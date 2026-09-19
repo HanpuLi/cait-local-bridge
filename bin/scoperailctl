@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""bridgectl: the user's local management channel for Cait Local Bridge.
+"""scoperailctl: the user's local management channel for ScopeRail.
 Talks to the loopback admin API (127.0.0.1:8796) with the admin token file; drives launchd and Tailscale Funnel directly.
 Nothing here is reachable from ChatGPT or the internet."""
 from __future__ import annotations
 import os, sys
-# ~/bin/bridgectl is a symlink and .venv/bin/python is itself a symlink to the interpreter, so resolve the install dir
+# ~/bin/scoperailctl is a symlink and .venv/bin/python is itself a symlink to the interpreter, so resolve the install dir
 # via realpath and detect the venv by sys.prefix rather than by comparing executables.
 _VENV_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), ".venv")
 _VENV = os.path.join(_VENV_DIR, "bin", "python")
@@ -15,9 +15,14 @@ from pathlib import Path
 
 INSTALL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(INSTALL_DIR))
-STATE = Path(os.environ.get("CLB_STATE_DIR", Path.home() / ".cait-local-bridge"))
-PLIST = Path.home() / "Library/LaunchAgents/com.cait.local-bridge.plist"
-LABEL = "com.cait.local-bridge"
+_NEW_STATE = Path.home() / ".scoperail"
+_LEGACY_STATE = Path.home() / ".cait-local-bridge"
+_DEFAULT_STATE = _LEGACY_STATE if _LEGACY_STATE.exists() and not _NEW_STATE.exists() else _NEW_STATE
+STATE = Path(os.environ.get("SCOPERAIL_STATE_DIR") or os.environ.get("CLB_STATE_DIR") or _DEFAULT_STATE)
+PLIST = Path.home() / "Library/LaunchAgents/io.github.hanpuli.scoperail.plist"
+LABEL = "io.github.hanpuli.scoperail"
+LEGACY_PLIST = Path.home() / "Library/LaunchAgents/com.cait.local-bridge.plist"
+LEGACY_LABEL = "com.cait.local-bridge"
 TS = next((
     p for p in (
         shutil.which("tailscale"),
@@ -40,7 +45,7 @@ def call(op: str, body: dict | None = None) -> dict:
     try:
         r = httpx.post(f"http://127.0.0.1:{c['admin_port']}/admin/{op}", json=body or {}, headers={"Authorization": f"Bearer {admin_token()}"}, timeout=60)
     except httpx.ConnectError:
-        sys.exit("bridge is not running (admin port closed). Start it: bridgectl start")
+        sys.exit("bridge is not running (admin port closed). Start it: scoperailctl start")
     try:
         return r.json()
     except ValueError:
@@ -55,6 +60,20 @@ def launchctl(*args) -> subprocess.CompletedProcess:
     return subprocess.run(["launchctl", *args], capture_output=True, text=True)
 
 
+def _active_service(uid: int) -> tuple[str, Path, subprocess.CompletedProcess]:
+    for label, plist in ((LABEL, PLIST), (LEGACY_LABEL, LEGACY_PLIST)):
+        r = launchctl("print", f"gui/{uid}/{label}")
+        if r.returncode == 0:
+            return label, plist, r
+    return LABEL, PLIST, launchctl("print", f"gui/{uid}/{LABEL}")
+
+
+def _kickstart_active() -> None:
+    uid = os.getuid()
+    label, _, _ = _active_service(uid)
+    launchctl("kickstart", "-k", f"gui/{uid}/{label}")
+
+
 def cmd_start(a):
     if not PLIST.exists():
         sys.exit(f"{PLIST} missing; run scripts/install.sh")
@@ -66,16 +85,17 @@ def cmd_start(a):
 
 def cmd_stop(a):
     uid = os.getuid()
-    r = launchctl("bootout", f"gui/{uid}/{LABEL}")
+    label, _, r0 = _active_service(uid)
+    r = launchctl("bootout", f"gui/{uid}/{label}") if r0.returncode == 0 else r0
     print("stopped" if r.returncode == 0 else f"bootout: {r.stderr.strip() or r.stdout.strip() or 'not loaded'}")
 
 
 def cmd_status(a):
     uid = os.getuid()
-    r = launchctl("print", f"gui/{uid}/{LABEL}")
+    label, _, r = _active_service(uid)
     state = "loaded" if r.returncode == 0 else "not loaded"
     pid = next((l.split("=")[1].strip() for l in r.stdout.splitlines() if l.strip().startswith("pid =")), None)
-    print(f"launchd: {state} pid={pid}")
+    print(f"launchd: {state} label={label} pid={pid}")
     try:
         s = call("status"); print(f"bridge: pid={s['pid']} public_url={s['public_url']} passphrase={'set' if s['passphrase_configured'] else 'NOT SET'} "
                                   f"workspaces={len([w for w in s['workspaces'] if w['active']])} active_jobs={len(s['active_jobs'])} live_tokens={s['live_access_tokens']} clients={s['oauth_clients']}")
@@ -103,9 +123,11 @@ def cmd_doctor(a):
     # independence: the service environment must not contain model runtimes or provider credentials
     env_leak = [k for k in os.environ if k.upper().startswith(("ANTHROPIC_", "OPENAI_", "CLAUDE", "CODEX"))]
     print("model env vars in this shell:", env_leak or "none")
-    if PLIST.exists():
+    _, active_plist, _ = _active_service(os.getuid())
+    if active_plist.exists():
         import plistlib
-        pl = plistlib.load(open(PLIST, "rb"))
+        pl = plistlib.load(open(active_plist, "rb"))
+        print("launchd plist:", active_plist)
         print("launchd PATH:", pl.get("EnvironmentVariables", {}).get("PATH"))
         print("launchd program:", pl["ProgramArguments"])
     if TS:
@@ -124,7 +146,7 @@ def cmd_passphrase(a):
     p2 = getpass.getpass("Repeat: ")
     if p1 != p2:
         sys.exit("mismatch")
-    set_passphrase(p1); print("passphrase set (scrypt, ~/.cait-local-bridge/secrets/user.json)")
+    set_passphrase(p1); print("passphrase set (scrypt, ~/.scoperail/secrets/user.json)")
 
 
 COMET_APP = Path("/Applications/Comet.app/Contents/MacOS/Comet")
@@ -150,8 +172,7 @@ def cmd_public_url(a):
     _write_cfg(public_url=url)
     print(f"public_url = {url}")
     if not a.no_restart:
-        uid = os.getuid()
-        launchctl("kickstart", "-k", f"gui/{uid}/{LABEL}")
+        _kickstart_active()
         time.sleep(2)
         cmd_status(a)
     else:
@@ -198,20 +219,18 @@ def cmd_browser(a):
             executable, profile = COMET_APP, COMET_PROFILE
         else:
             if not a.executable or not a.profile:
-                sys.exit("usage: bridgectl browser clone-profile --executable <browser-binary> --profile <profile-dir>")
+                sys.exit("usage: scoperailctl browser clone-profile --executable <browser-binary> --profile <profile-dir>")
             executable, profile = Path(a.executable), Path(a.profile)
         copied, dst = _clone_browser_profile(executable, profile)
         print(f"cloned {copied} from {Path(profile).expanduser()} into {dst}; managed browser is windowed")
-        uid = os.getuid()
-        launchctl("kickstart", "-k", f"gui/{uid}/{LABEL}")
+        _kickstart_active()
         time.sleep(2)
         print("This is a copy, not a live share. Re-run the clone after browser-login changes.")
     elif a.action == "reset":
         shutil.rmtree(BROWSER_PROFILE_DIR, ignore_errors=True)
         _write_cfg(browser_executable=None, browser_headless=True)
         print("browser profile wiped; engine = headless Chrome/Chromium with an empty profile")
-        uid = os.getuid()
-        launchctl("kickstart", "-k", f"gui/{uid}/{LABEL}")
+        _kickstart_active()
 
 
 def cmd_workspace(a):
@@ -277,7 +296,7 @@ def cmd_task(a):
         for w in call("status")["workspaces"]:
             if x in (w["id"], w["name"]):
                 return w["id"]
-        sys.exit(f"no workspace {x!r}; bridgectl workspace list")
+        sys.exit(f"no workspace {x!r}; scoperailctl workspace list")
     def show(t, verbose=True):
         print(f"{t['task_id']} {t['status']} step={t.get('step')} {t['elapsed_s']:.0f}s branch={t.get('branch')} worktree={t.get('worktree')}")
         if not verbose: return
@@ -291,7 +310,7 @@ def cmd_task(a):
         if t.get("diffstat"): print("  " + t["diffstat"].replace("\n", "\n  "))
         if t.get("summary_path"): print(f"  summary: {t['summary_path']}")
     if a.action == "start":
-        if not a.task: sys.exit("usage: bridgectl task start \"<what to change>\" --workspace <id|name> [--repo .] [--test \"pytest -q\"] [--rounds 3] [--effort extra_high] [--agent x] [--notes ...] [--watch]")
+        if not a.task: sys.exit("usage: scoperailctl task start \"<what to change>\" --workspace <id|name> [--repo .] [--test \"pytest -q\"] [--rounds 3] [--effort extra_high] [--agent x] [--notes ...] [--watch]")
         body = {"workspace_id": ws_id(a.workspace), "task": a.task, "repo_path": a.repo, "test_command": a.test, "max_rounds": a.rounds, "effort": a.effort,
                 "agent": a.agent, "profile": a.profile, "baseline": not a.no_baseline, "notes": a.notes, "branch": a.branch, "protected_paths": a.protect or []}
         t = call("coding_task_start", body)
@@ -359,7 +378,7 @@ def cmd_backup(a):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="bridgectl")
+    ap = argparse.ArgumentParser(prog="scoperailctl")
     sp = ap.add_subparsers(dest="cmd", required=True)
     for n in ("start", "stop", "status", "doctor", "backup", "clients"):
         sp.add_parser(n)
@@ -389,15 +408,15 @@ def main():
     a = ap.parse_args()
     if a.cmd == "workspace":
         if a.action == "add":
-            if not a.root_or_id: sys.exit("usage: bridgectl workspace add <dir> --name <n> [--profiles sandboxed,trusted-host] [--network off|public] [--days 30]")
+            if not a.root_or_id: sys.exit("usage: scoperailctl workspace add <dir> --name <n> [--profiles sandboxed,trusted-host] [--network off|public] [--days 30]")
             a.root = a.root_or_id; a.name = a.name or Path(a.root).name; a.network = a.network or "off"
         else:
             a.id = a.root_or_id
     if a.cmd == "grant" and a.action == "add" and (not a.workspace_id or not a.kind):
-        sys.exit("usage: bridgectl grant add <workspace_id> <kind> key=value ... [--hours 24] [--max-uses N]\n"
+        sys.exit("usage: scoperailctl grant add <workspace_id> <kind> key=value ... [--hours 24] [--max-uses N]\n"
                  "kinds: git_push remote=<name> branch=<branch> [commit=<sha>] | ssh_host host=<alias> | desktop screen=*")
     if a.cmd == "task":
-        if a.action == "start" and not a.workspace: sys.exit("bridgectl task start needs --workspace <id|name>")
+        if a.action == "start" and not a.workspace: sys.exit("scoperailctl task start needs --workspace <id|name>")
         if a.action in ("show", "cancel"): a.id = a.task
     if a.cmd == "grant" and a.action == "revoke":
         a.id = a.workspace_id
