@@ -33,7 +33,7 @@ INSTRUCTIONS = (
     "(commands, patches, browser primitives) and returns raw results. There is no server-side model, no delegation and no auto-retry. "
     "Workflow: bridge_info -> workspace_list -> repo_outline (tree + symbols in one call) -> file_search/file_read (line ranges) -> file_edit "
     "(exact old->new replacement; file_patch for multi-file diffs; file_write only for new or whole files) -> exec_run (one call: runs a command and "
-    "returns exit code + output; exec_start/exec_poll/exec_logs only for servers, PTY or anything longer than a few minutes) -> git_read/git_write -> "
+    "returns exit code + output for short commands; exec_start/exec_poll/exec_logs for anything expected to take more than 15 seconds, servers or PTY) -> git_read/git_write -> "
     "git_push only with a user grant. Every write is retry-safe: the same file_edit/file_patch/file_write/exec_run(idempotency_key) sent twice is a no-op "
     "the second time, so if a call is dropped before reaching the bridge, send it again verbatim. For a whole implement->test->fix job on a git "
     "repository use coding_task (the bridge runs the loop deterministically on a branch and verifies with the real test command). "
@@ -41,7 +41,11 @@ INSTRUCTIONS = (
     "Errors come back as isError with a stable code (permission_denied, conflict, not_found, needs_user_action, rate_limited, offline, timeout, "
     "missing_dependency, invalid_argument, upstream_blocked). needs_user_action means the user must run a scoperailctl command locally; tell them exactly which. "
     "Sub-agents (agent_start): a fresh conversation in the user's OWN chatgpt.com session, driven by the bridge browser, optionally wearing one of her "
-    "~/.claude/agents or skills personas (agent_catalog); it can call this bridge itself. It spends her ChatGPT plan, not an API key; there is still no other model."
+    "~/.claude/agents or skills personas (agent_catalog); it can call this bridge itself. It spends her ChatGPT plan, not an API key; there is still no other model. "
+    "If a child ends task_status=blocked because OpenAI dropped a bridge call, inspect its final_text and the original user request. When that exact operation "
+    "is already authorized by the user and remains within the existing workspace/profile/grants, the parent may send ONE narrowly scoped agent_send follow-up "
+    "stating that authorization and asking the child to retry the same operation once. Do not use this to expand permission or authorize external side effects; "
+    "if the user's intent does not clearly cover the operation, stop and ask the user. Then agent_poll again: terminal polls include the child's final_text."
 )
 
 server = MCPServer(
@@ -504,18 +508,18 @@ def exec_start(workspace_id: str, command: list[str] | str, profile: str = "sand
 @tool("exec_run", RW)
 @guarded
 async def exec_run(workspace_id: str, command: list[str] | str, profile: str = "sandboxed", cwd: str = ".", env: dict[str, str] | None = None,
-                   timeout_seconds: int = 120, stdin_text: str | None = None, remote_host: str | None = None, max_output_bytes: int = 16000,
+                   timeout_seconds: int = 120, wait_seconds: int = 15, stdin_text: str | None = None, remote_host: str | None = None, max_output_bytes: int = 16000,
                    idempotency_key: str | None = None, _subject: str = "") -> CallToolResult:
-    """Run a command to completion and return exit_code, stdout and stderr in ONE call (the tail when output is long; the full logs stay readable
-    with exec_logs by job_id). Use this for tests, builds, linters, git, scripts — anything that ends within timeout_seconds (max 300; the process
-    is killed at the limit and timed_out=true). Same command/profile/cwd/env semantics as exec_start (`command` = argv list or zsh string).
-    Pass idempotency_key to make a retried call return the first run's result instead of running twice. Long servers, PTY sessions and jobs over
-    5 minutes belong to exec_start."""
+    """Run a short command and return exit_code, stdout and stderr in ONE call (the tail when output is long; full logs remain readable with exec_logs).
+    Waits up to wait_seconds (default 15, max 30); if still running, returns status=running and job_id while the process continues in the background.
+    Use exec_start for work expected to take longer, then exec_poll/exec_logs. timeout_seconds (max 300) remains the command runtime limit;
+    it does not make this call wait that long. Pass idempotency_key so retrying a dropped call cannot start the command twice."""
     timeout_seconds = max(1, min(int(timeout_seconds), 300))
+    wait_seconds = max(1, min(int(wait_seconds), 30))
     j = jobs.start(workspace_id, profile, command, cwd, env, timeout_seconds, False, idempotency_key, stdin_text, 120, 40, _subject, remote_host)
     job_id = j["job_id"]
     t0 = time.time(); step = 0.1
-    while j["status"] in jobs.STATUS_ACTIVE and time.time() - t0 < timeout_seconds + 15:
+    while j["status"] in jobs.STATUS_ACTIVE and time.time() - t0 < wait_seconds:
         await asyncio.sleep(step); step = min(step * 1.5, 1.0)
         j = jobs.info(job_id)
     cap = max(1024, min(int(max_output_bytes), 200_000))
@@ -525,7 +529,8 @@ async def exec_run(workspace_id: str, command: list[str] | str, profile: str = "
         return d["text"], size > cap
     out, out_tr = tail("stdout"); err, err_tr = tail("stderr")
     return _ok({"job_id": job_id, "status": j["status"], "exit_code": j["exit_code"], "signal": j["signal"], "timed_out": j["timed_out"],
-                "deduplicated": j.get("deduplicated", False), "elapsed_s": round((j["end_ts"] or time.time()) - (j["start_ts"] or t0), 2),
+                "deduplicated": j.get("deduplicated", False), "wait_exhausted": j["status"] in jobs.STATUS_ACTIVE,
+                "elapsed_s": round((j["end_ts"] or time.time()) - (j["start_ts"] or t0), 2),
                 "stdout": out, "stderr": err, "stdout_bytes": j["log_sizes"]["stdout"], "stderr_bytes": j["log_sizes"]["stderr"],
                 "truncated": out_tr or err_tr, "argv": j["argv"], "cwd": j["cwd"], "profile": j["profile"]}, workspace_id=workspace_id, job_id=job_id)
 
@@ -685,7 +690,7 @@ def job_schedule_cancel(schedule_id: str, _subject: str = "") -> CallToolResult:
 # ---------- 5.4 browser ----------
 @tool("browser_open", NAV)
 @guarded
-async def browser_open(workspace_id: str, url: str, width: int = 1280, height: int = 900, color_scheme: str = "light", wait_until: str = "load",
+async def browser_open(workspace_id: str, url: str, width: int = 1280, height: int = 900, color_scheme: str = "light", wait_until: str = "domcontentloaded",
                        timeout_ms: int = 30000, _subject: str = "") -> CallToolResult:
     """Open a URL in a local browser tab on the user's Mac and return page_id. Navigation only: this loads the page and does not submit forms,
     post, purchase, send or delete anything. Best for pages the user's own web search cannot reach: local/tailnet services, JS-heavy pages, and
@@ -695,7 +700,7 @@ async def browser_open(workspace_id: str, url: str, width: int = 1280, height: i
 
 @tool("browser_open_cdp", NAV)
 @guarded
-async def browser_open_cdp(workspace_id: str, url: str, wait_until: str = "load", timeout_ms: int = 30000, cdp_url: str = "http://127.0.0.1:9222",
+async def browser_open_cdp(workspace_id: str, url: str, wait_until: str = "domcontentloaded", timeout_ms: int = 30000, cdp_url: str = "http://127.0.0.1:9222",
                            _subject: str = "") -> CallToolResult:
     """Open a URL as a new tab in the user's own already-running Chrome (DevTools endpoint on loopback) and return page_id. Navigation only.
     Trusted-host workspaces only; bridge_info.user_browsers says whether that Chrome is running. Other browser_* tools then work on the page_id."""
@@ -986,7 +991,9 @@ def agent_start(workspace_id: str, prompt: str, agent: str | None = None, effort
     and run commands itself. effort = instant|medium|high|extra_high|pro|auto (chatgpt.com Power slider; account-wide setting is restored after send).
     Completion without independent verification is status=completed, task_status=unverified, not succeeded.
     Optional verification={"kind":"exec","argv":[...],"stdout":"exact output"} requires current-turn host/audit evidence and exit code 0.
-    Platform blocks: the sub-agent may repeat the identical call once, then stops and reports; the bridge never retries.
+    Platform blocks: the sub-agent may repeat the identical call once, then stops and reports; the bridge never retries. If blocked, inspect final_text and the
+    original user request. The parent may use one narrowly scoped agent_send follow-up only when that request already authorizes the exact operation within
+    existing workspace/profile/grants; do not use a follow-up to expand authority or approve a new external side effect.
     browser_sites: hostnames the sub-agent may open with the bridge browser (e.g. ["app.dashboard.local", "mail.google.com"]); everything else on the
     public web it looks up with its own web search — that route is never subject to the plugin safety check.
     Costs the user's ChatGPT plan; at most a few in parallel. Never call this for work you can do yourself in one step. dry_run=true types but does not send (debug).
@@ -998,8 +1005,12 @@ def agent_start(workspace_id: str, prompt: str, agent: str | None = None, effort
 @tool("agent_poll", RO)
 @guarded
 def agent_poll(run_id: str, _subject: str = "") -> CallToolResult:
-    """Status of a sub-agent run: queued/starting/running/completed/succeeded/failed/cancelled/interrupted; separate conversation_status/task_status, phase, attempted tool calls so far, preview of the latest assistant text, conversation_url."""
+    """Status of a sub-agent run: queued/starting/running/completed/succeeded/failed/cancelled/interrupted; separate conversation_status/task_status, phase, attempted tool calls so far, preview of the latest assistant text, conversation_url. On terminal runs, also returns final_text (up to 12,000 chars) and final_text_truncated so the caller receives the child's result in the same poll; use agent_result for the full text and transcript details."""
     j = agents.info(run_id)
+    if j["status"] not in agents.STATUS_ACTIVE:
+        result = agents.result(run_id, max_chars=12000)
+        j["final_text"] = result["final_text"]
+        j["final_text_truncated"] = result["truncated"]
     return _ok(j, workspace_id=j["workspace_id"], job_id=run_id)
 
 
@@ -1014,7 +1025,7 @@ def agent_result(run_id: str, max_chars: int = 60000, _subject: str = "") -> Cal
 @tool("agent_send", NET)
 @guarded
 async def agent_send(run_id: str, text: str, timeout_seconds: int | None = None, verification: dict | None = None, _subject: str = "") -> CallToolResult:
-    """Send a follow-up message into a finished sub-agent's conversation and wait for its reply (same polling; agent_result returns the new final text)."""
+    """Send a follow-up message into a finished sub-agent's conversation and wait for its reply. If the child was blocked, the parent may state a user authorization only when the original request clearly covers that exact operation and it stays within current workspace/profile/grants; do not broaden authority. Then agent_poll returns the new final_text, or agent_result returns full text and transcript details."""
     j = await agents.send(run_id, text, timeout_seconds, _subject, verification)
     return _ok(j, workspace_id=j["workspace_id"], job_id=run_id)
 

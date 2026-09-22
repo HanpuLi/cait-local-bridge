@@ -218,7 +218,7 @@ async def attach_existing_cdp(
         return {"page_id": pid, "page_index": idx, "url": page.url, "title": title, "cdp_url": cdp_url, "reused": False, "external": True}
 
 
-async def attach_cdp(workspace_id: str, cdp_url: str, url: str, wait_until: str = "load", timeout_ms: int = 30000) -> dict:
+async def attach_cdp(workspace_id: str, cdp_url: str, url: str, wait_until: str = "domcontentloaded", timeout_ms: int = 30000) -> dict:
     """Open a tab in one of the user's OWN already-running Chromium browsers that exposes a loopback DevTools port.
     Trusted-host workspaces only: it is the user's real browser with existing sessions; no managed-browser route policing is
     applied because the externally launched profile already has the user's normal network access."""
@@ -258,7 +258,7 @@ def _entry(page_id: str) -> dict:
 
 
 async def open_page(workspace_id: str, url: str, width: int = 1280, height: int = 900, color_scheme: str = "light",
-                    wait_until: str = "load", timeout_ms: int = 30000, init_script: str | None = None) -> dict:
+                    wait_until: str = "domcontentloaded", timeout_ms: int = 30000, init_script: str | None = None) -> dict:
     workspace_get(workspace_id)
     async with _lock:
         await _ensure()
@@ -279,7 +279,7 @@ async def open_page(workspace_id: str, url: str, width: int = 1280, height: int 
     return await navigate(pid, url, wait_until, timeout_ms)
 
 
-async def navigate(page_id: str, url: str, wait_until: str = "load", timeout_ms: int = 30000) -> dict:
+async def navigate(page_id: str, url: str, wait_until: str = "domcontentloaded", timeout_ms: int = 30000) -> dict:
     e = _entry(page_id); page = e["page"]
     u = urllib.parse.urlsplit(url)
     if u.scheme not in ("http", "https"):
