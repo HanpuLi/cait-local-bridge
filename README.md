@@ -6,6 +6,8 @@ ScopeRail is a scoped local execution runtime for MCP clients that need to work 
 
 It is not just a shell MCP. Shell access is one surface inside a broader permission model: a caller starts from a registered workspace, receives only the profiles and grants the operator enabled, and uses retry-safe primitives that return provenance and observable results.
 
+**Maintainer:** [Hanpu Li / 李函璞](https://hanpuli.github.io/) · [portfolio / project index](https://hanpuli.github.io/#work)
+
 ## Install and run
 
 Python 3.12+ and `pipx` on macOS:
