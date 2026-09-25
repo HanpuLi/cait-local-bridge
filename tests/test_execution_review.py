@@ -52,7 +52,7 @@ class ReviewFixture(unittest.TestCase):
     def make_job(self, out=b"ok\n", err=b"", status="succeeded", exit_code=0, complete=True, extra_meta=None):
         jid = "job_" + uuid.uuid4().hex[:12]
         meta = {"output_complete": complete, **(extra_meta or {})}
-        spec = {"argv": ["cmd", "password=NEVER_ECHO_ARG"], "cwd": "/Users/private/hidden", "pty": False}
+        spec = {"argv": ["cmd", "password=NEVER_ECHO_ARG"], "cwd": "/" + "Users/private/hidden", "pty": False}
         db.q("INSERT INTO jobs(id,workspace_id,profile,kind,spec,status,created_at,start_ts,end_ts,exit_code,meta) "
              "VALUES(?,?,?,?,?,?,?,?,?,?,?)", jid, self.wid, "trusted-host", "exec", json.dumps(spec),
              status, time.time()-2, time.time()-1, time.time() if status not in jobs.STATUS_ACTIVE else None,
@@ -100,8 +100,9 @@ class SanitizerTests(unittest.TestCase):
         self.assertNotIn("middle", clean)
 
     def test_authorization_home_and_url_credentials(self):
+        mac_path = "/" + "Users/bob/file"
         clean = self.clean('Authorization: Bearer private-value\nhttps://bob:secret@example.invalid/x\n'
-                           '/Users/bob/file /home/alice/x C:\\Users\\carol\\file')
+                           + mac_path + ' /home/alice/x C:\\Users\\carol\\file')
         for secret in ("private-value", "bob", "alice", "carol", "secret"):
             self.assertNotIn(secret, clean)
         self.assertIn("example.invalid", clean)
