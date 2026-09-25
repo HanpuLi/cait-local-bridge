@@ -237,6 +237,53 @@ class HostVerificationTests(unittest.TestCase):
         self.assertEqual(r["meta"]["tool_calls"], 0)
         self.assertIsNone(r["result"])
 
+    def test_timeout_reconciles_finished_backend_turn(self):
+        agents._set("agent_test", status="running", conv_id="conv", page_id="page_test",
+                    spec=json.dumps({"timeout": 1, "verification": None}))
+        conv = {"status": 200, "msgs": [
+            message("user", "research it"),
+            message("assistant", "Finished.\nCLB_TASK_STATUS=done"),
+        ], "model": "fixture"}
+
+        async def exercise():
+            async def fake_wait_for(coro, timeout):
+                coro.close()
+                raise TimeoutError
+            with patch.object(agents, "_run", new=AsyncMock()), \
+                 patch.object(agents, "_conversation", new=AsyncMock(return_value=conv)), \
+                 patch.object(agents.browser, "_pages", {"page_test": {"page": object()}}), \
+                 patch.object(asyncio, "wait_for", new=fake_wait_for):
+                await agents._guard("agent_test", "research it", timeout=1)
+
+        asyncio.run(exercise())
+        out = agents.result("agent_test")
+        self.assertEqual(out["final_text"], "Finished.\nCLB_TASK_STATUS=done")
+        self.assertEqual((out["status"], out["task_status"]), ("completed", "unverified"))
+        self.assertTrue(agents._row("agent_test")["meta"].get("timeout_reconciled"))
+
+    def test_timeout_still_fails_when_backend_turn_is_incomplete(self):
+        agents._set("agent_test", status="running", conv_id="conv", page_id="page_test",
+                    spec=json.dumps({"timeout": 1, "verification": None}))
+        conv = {"status": 200, "msgs": [
+            message("user", "research it"),
+            {**message("assistant", "still working"), "end_turn": False, "status": "in_progress"},
+        ], "model": "fixture"}
+
+        async def exercise():
+            async def fake_wait_for(coro, timeout):
+                coro.close()
+                raise TimeoutError
+            with patch.object(agents, "_run", new=AsyncMock()), \
+                 patch.object(agents, "_conversation", new=AsyncMock(return_value=conv)), \
+                 patch.object(agents.browser, "_pages", {"page_test": {"page": object()}}), \
+                 patch.object(asyncio, "wait_for", new=fake_wait_for):
+                await agents._guard("agent_test", "research it", timeout=1)
+
+        asyncio.run(exercise())
+        out = agents.result("agent_test")
+        self.assertEqual((out["status"], out["error_code"]), ("failed", "timeout"))
+        self.assertEqual(out["final_text"], "")
+
 
 class ServerReceiptTests(unittest.IsolatedAsyncioTestCase):
     async def test_request_ids_survive_concurrency_and_match_audit(self):

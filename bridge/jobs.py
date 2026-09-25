@@ -1,7 +1,7 @@
 """Process execution engine: sandboxed (macOS Seatbelt via sandbox-exec) and trusted-host profiles, PTY support,
 process-group cancellation, capped logs on disk, restart recovery without fake success. No model is ever invoked here."""
 from __future__ import annotations
-import fcntl, json, os, pty, re, shlex, signal, struct, subprocess, termios, threading, time, uuid
+import errno, fcntl, json, os, pty, re, shlex, signal, struct, subprocess, termios, threading, time, uuid
 from pathlib import Path
 from typing import Any
 from . import db
@@ -173,6 +173,8 @@ def start(workspace_id: str, profile: str, command: list[str] | str, cwd: str = 
 def _launch(job_id: str, argv: list[str], cwd: str, env: dict, use_pty: bool, stdin_text: str | None, cols: int, rows: int, timeout: int) -> None:
     jd = _job_dir(job_id)
     out_path, err_path = jd / "stdout.log", jd / "stderr.log"
+    readers: list[threading.Thread] = []
+    reader_outcomes: list[dict] = []
     try:
         if use_pty:
             master, slave = pty.openpty()
@@ -183,9 +185,13 @@ def _launch(job_id: str, argv: list[str], cwd: str, env: dict, use_pty: bool, st
             proc = subprocess.Popen(argv, cwd=cwd, env=env, stdin=slave, stdout=slave, stderr=slave, preexec_fn=preexec, close_fds=True)
             os.close(slave)
             err_path.write_bytes(b"")
+            outcome = {"eof": False, "error": True, "truncated": False}
+            reader_outcomes.append(outcome)
+            reader = threading.Thread(target=_pty_reader, args=(job_id, master, out_path, outcome), daemon=True)
+            readers.append(reader)
             with _lock:
-                _live[job_id] = {"proc": proc, "master": master, "stdin": None}
-            threading.Thread(target=_pty_reader, args=(job_id, master, out_path), daemon=True).start()
+                _live[job_id] = {"proc": proc, "master": master, "stdin": None, "readers": readers, "reader_outcomes": reader_outcomes}
+            reader.start()
         else:
             # The parent (unsandboxed) owns the log files, which live under the control-plane dir the sandbox denies
             # writing to; so we pipe the child's output and write the logs here rather than handing it the fds.
@@ -195,15 +201,19 @@ def _launch(job_id: str, argv: list[str], cwd: str, env: dict, use_pty: bool, st
             proc = subprocess.Popen(argv, cwd=cwd, env=env, stdin=stdin_mode, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     start_new_session=True, close_fds=True)
             out_path.write_bytes(b""); err_path.write_bytes(b"")
-            threading.Thread(target=_pipe_reader, args=(job_id, proc.stdout, out_path), daemon=True).start()
-            threading.Thread(target=_pipe_reader, args=(job_id, proc.stderr, err_path), daemon=True).start()
+            for pipe, path in ((proc.stdout, out_path), (proc.stderr, err_path)):
+                outcome = {"eof": False, "error": True, "truncated": False}
+                reader_outcomes.append(outcome)
+                reader = threading.Thread(target=_pipe_reader, args=(job_id, pipe, path, outcome), daemon=True)
+                readers.append(reader)
+                reader.start()
             if stdin_text is not None and proc.stdin:
                 try:
                     proc.stdin.write(stdin_text.encode()); proc.stdin.flush()
                 except BrokenPipeError:
                     pass
             with _lock:
-                _live[job_id] = {"proc": proc, "master": None, "stdin": proc.stdin if stdin_text is not None else None}
+                _live[job_id] = {"proc": proc, "master": None, "stdin": proc.stdin if stdin_text is not None else None, "readers": readers, "reader_outcomes": reader_outcomes}
     except Exception as e:  # spawn failure is a real failure, recorded as such
         _set(job_id, status="failed", end_ts=time.time(), meta=json.dumps({"error": f"spawn failed: {e}"}))
         raise BridgeError("missing_dependency" if isinstance(e, FileNotFoundError) else "internal", f"could not start process: {e}")
@@ -213,52 +223,63 @@ def _launch(job_id: str, argv: list[str], cwd: str, env: dict, use_pty: bool, st
     threading.Thread(target=_waiter, args=(job_id, proc, timeout), daemon=True).start()
 
 
-def _pipe_reader(job_id: str, pipe, out_path: Path) -> None:
+def _capture_output(fd: int, out_path: Path, pty_mode: bool, outcome: dict) -> None:
+    """Drain to EOF and record evidence separately from the process exit status."""
     cap = CFG["max_job_log_bytes"]
-    n = 0
+    count = 0
+    eof = False
     with open(out_path, "ab") as f:
-        # BufferedReader.read(65536) may wait for the entire request (or EOF),
-        # which makes long-lived pipe jobs appear silent.  Read the fd directly so
-        # whatever the child has already produced is flushed into the job log.
-        fd = pipe.fileno()
         while True:
             try:
                 data = os.read(fd, 65536)
-            except (OSError, ValueError):
-                break
+            except InterruptedError:
+                continue
+            except OSError as exc:
+                # Linux PTYs report EIO when the last slave closes; pipes do not.
+                if pty_mode and exc.errno == errno.EIO:
+                    eof = True
+                    break
+                raise
             if not data:
+                eof = True
                 break
-            if n < cap:
-                f.write(data[: cap - n]); f.flush()
-            n += len(data)
-        if n > cap:
+            if count < cap:
+                f.write(data[:cap - count])
+                f.flush()
+            count += len(data)
+        if count > cap:
             f.write(f"\n[bridge] log truncated at {cap} bytes\n".encode())
-    try:
-        pipe.close()
-    except OSError:
-        pass
+    # Only publish success after the output file has flushed and closed.
+    outcome.update(eof=eof, error=False, truncated=count > cap)
 
 
-def _pty_reader(job_id: str, master: int, out_path: Path) -> None:
-    cap = CFG["max_job_log_bytes"]
-    with open(out_path, "ab") as f:
-        n = 0
-        while True:
-            try:
-                data = os.read(master, 65536)
-            except OSError:
-                break
-            if not data:
-                break
-            if n < cap:
-                f.write(data[: cap - n]); f.flush()
-            n += len(data)
-        if n > cap:
-            f.write(f"\n[bridge] log truncated at {cap} bytes\n".encode())
+def _pipe_reader(job_id: str, pipe, out_path: Path, outcome: dict | None = None) -> None:
+    outcome = outcome if outcome is not None else {}
+    outcome.update(eof=False, error=True, truncated=False)
     try:
-        os.close(master)
-    except OSError:
-        pass
+        _capture_output(pipe.fileno(), out_path, False, outcome)
+    except (OSError, ValueError):
+        # A failed reader is not a complete output snapshot, even if the child exits 0.
+        outcome.update(eof=False, error=True)
+    finally:
+        try:
+            pipe.close()
+        except OSError:
+            pass
+
+
+def _pty_reader(job_id: str, master: int, out_path: Path, outcome: dict | None = None) -> None:
+    outcome = outcome if outcome is not None else {}
+    outcome.update(eof=False, error=True, truncated=False)
+    try:
+        _capture_output(master, out_path, True, outcome)
+    except (OSError, ValueError):
+        outcome.update(eof=False, error=True)
+    finally:
+        try:
+            os.close(master)
+        except OSError:
+            pass
 
 
 def _waiter_body(job_id: str, proc: subprocess.Popen, timeout: int) -> None:
@@ -290,8 +311,17 @@ def _waiter_body(job_id: str, proc: subprocess.Popen, timeout: int) -> None:
         time.sleep(0.25)
     with _lock:
         live = _live.pop(job_id, None)
-    if live and live.get("master") is not None:
-        time.sleep(0.2)  # let the pty reader drain
+    # A process exit is not proof that its pipe/PTY reader has finished writing.
+    # A child may inherit an open pipe: never wait indefinitely for drain.
+    readers = live.get("readers", []) if live else []
+    drain_deadline = time.monotonic() + 2.0
+    for reader in readers:
+        reader.join(max(0.0, drain_deadline - time.monotonic()))
+    outcomes = live.get("reader_outcomes", []) if live else []
+    output_complete = (bool(readers) and len(outcomes) == len(readers)
+                       and all(not reader.is_alive() for reader in readers)
+                       and all(item.get("eof") is True and item.get("error") is False for item in outcomes))
+    output_truncated = any(item.get("truncated") for item in outcomes)
     row = _row(job_id)
     if row["status"] == "cancelled":
         status = "cancelled"
@@ -300,7 +330,7 @@ def _waiter_body(job_id: str, proc: subprocess.Popen, timeout: int) -> None:
     else:
         status = "succeeded" if rc == 0 else "failed"
     sig = -rc if (rc is not None and rc < 0) else None
-    meta = row["meta"]; meta.update({"timed_out": timed_out})
+    meta = row["meta"]; meta.update({"timed_out": timed_out, "output_complete": output_complete, "output_truncated": output_truncated})
     _set(job_id, status=status, end_ts=time.time(), exit_code=(rc if rc is not None and rc >= 0 else None), signal=sig, meta=json.dumps(meta))
     db.q("INSERT INTO inbox(workspace_id,kind,payload,created_at) VALUES(?,?,?,?)", row["workspace_id"], "job_finished",
          json.dumps({"job_id": job_id, "status": status, "exit_code": rc if rc is not None and rc >= 0 else None, "signal": sig,
