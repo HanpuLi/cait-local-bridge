@@ -293,7 +293,27 @@ async def _guard(run_id: str, message: str, followup: bool = False, timeout: int
     timeout = timeout or r["spec"]["timeout"]
     try:
         await asyncio.wait_for(_run(run_id, message, followup), timeout=timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
+        # A timeout can land after ChatGPT has committed the final assistant
+        # turn but before our polling loop has fetched it. Reconcile the
+        # authoritative backend conversation once before recording failure.
+        # Never infer completion from a DOM preview or an output file.
+        latest = _row(run_id)
+        entry = browser._pages.get(latest["page_id"]) if latest["page_id"] else None
+        if latest["conv_id"] and entry:
+            try:
+                conv = await _conversation(entry["page"], latest["conv_id"])
+                if conv.get("status") == 200:
+                    users = [i for i, m in enumerate(conv["msgs"]) if m["role"] == "user"]
+                    d = _digest(conv, users[-1] if users else -1)
+                    if d["final_end_turn"] and d["final_status"] == "finished_successfully":
+                        _persist_result(run_id, conv, d)
+                        assessment = d["outcome"]
+                        _meta_update(run_id, timeout_reconciled=True)
+                        _finish(run_id, assessment["status"], assessment["error_code"], assessment["error"])
+                        return
+            except Exception as e:  # noqa: BLE001 - best-effort reconciliation must preserve original timeout
+                _meta_update(run_id, timeout_reconcile_error=f"{type(e).__name__}: {str(e)[:200]}")
         _finish(run_id, "failed", "timeout", f"sub-agent did not finish within {timeout}s; tab left open (page_id) — agent_cancel closes it")
     except asyncio.CancelledError:
         pass  # cancel() already recorded the state
